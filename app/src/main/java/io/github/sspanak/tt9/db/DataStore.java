@@ -90,6 +90,15 @@ public class DataStore {
 	}
 
 
+	/**
+	 * Silently adds a word as a custom word if it doesn't already exist.
+	 * This is intended for auto-adding words when the user finishes typing (e.g. pressing spacebar).
+	 */
+	public static void putSilently(@NonNull Language language, @NonNull String word) {
+		runInThread(() -> words.put(language, word));
+	}
+
+
 	public static void makeTopWord(@NonNull Language language, @NonNull String word, @NonNull String sequence) {
 		runInThread(() -> words.makeTopWord(language, word, sequence));
 	}
