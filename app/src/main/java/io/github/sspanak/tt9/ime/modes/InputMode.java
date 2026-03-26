@@ -266,6 +266,9 @@ abstract public class InputMode {
 	}
 
 
+	// Predictive-to-manual fallback
+	public boolean shouldFallbackToManual() { return false; }
+
 	// Stem filtering.
 	// Where applicable, return "true" if the mode supports it and the operation was possible.
 	public boolean clearWordStem() { return setWordStem("", true); }

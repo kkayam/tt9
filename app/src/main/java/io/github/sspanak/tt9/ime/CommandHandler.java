@@ -158,6 +158,10 @@ abstract public class CommandHandler extends TextEditingHandler {
 			return;
 		}
 
+		// Clear predictive fallback state on explicit mode switch
+		inPredictiveFallback = false;
+		fallbackCharsTyped = 0;
+
 		suggestionOps.cancelDelayedAccept();
 		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
 		resetKeyRepeat();
@@ -199,6 +203,9 @@ abstract public class CommandHandler extends TextEditingHandler {
 		if (!mEnabledLanguages.contains(langId)) {
 			return;
 		}
+
+		inPredictiveFallback = false;
+		fallbackCharsTyped = 0;
 
 		suggestionOps.cancelDelayedAccept();
 		stopVoiceInput();

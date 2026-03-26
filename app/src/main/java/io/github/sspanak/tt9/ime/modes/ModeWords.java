@@ -579,6 +579,20 @@ class ModeWords extends ModeCheonjiin {
 
 	@Override protected int shouldRewindRepeatingNumbers(int nextNumber) { return 0; }
 
+	/**
+	 * shouldFallbackToManual
+	 * Returns true when the current digit sequence has no dictionary word matches,
+	 * indicating the user should be switched to manual (ABC) mode for custom word entry.
+	 */
+	@Override
+	public boolean shouldFallbackToManual() {
+		return !digitSequence.isEmpty()
+			&& predictions.noDbWords()
+			&& !disablePredictions
+			&& !seq.isAnySpecialCharSequence(digitSequence)
+			&& !seq.startsWithEmojiSequence(digitSequence);
+	}
+
 
 	@NonNull
 	@Override

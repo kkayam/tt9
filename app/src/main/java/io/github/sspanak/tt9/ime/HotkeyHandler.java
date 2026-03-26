@@ -71,12 +71,24 @@ public abstract class HotkeyHandler extends CommandHandler {
 			onAcceptSuggestionManually(suggestionOps.acceptCurrent(), KeyEvent.KEYCODE_ENTER);
 			return true;
 		} else if (!suggestionOps.isEmpty()) {
+			boolean shouldEnterFallback = false;
+			String acceptedWord = "";
+
 			if (mInputMode.shouldReplacePreviousSuggestion(suggestionOps.getCurrent())) {
 				mInputMode.onReplaceSuggestion(suggestionOps.getCurrentRaw());
 			} else if (InputModeKind.isRecomposing(mInputMode)) {
 				onAcceptSuggestionManually(suggestionOps.acceptEdited(), KeyEvent.KEYCODE_ENTER);
 			} else {
-				onAcceptSuggestionManually(suggestionOps.acceptCurrent(), KeyEvent.KEYCODE_ENTER);
+				// Only enter fallback when accepting a normal word in predictive mode
+				shouldEnterFallback = InputModeKind.isPredictive(mInputMode) && !isInPredictiveFallback();
+				acceptedWord = suggestionOps.acceptCurrent();
+				onAcceptSuggestionManually(acceptedWord, KeyEvent.KEYCODE_ENTER);
+			}
+
+			// After accepting a suggestion in predictive mode, fall back to manual mode
+			// so the user can continue typing custom characters
+			if (shouldEnterFallback) {
+				enterPredictiveFallback(acceptedWord.length());
 			}
 
 			return true;

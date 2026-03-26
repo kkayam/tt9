@@ -105,6 +105,15 @@ abstract public class SuggestionHandler extends TypingHandler {
 		if (!Characters.getSpace(mLanguage).equals(word)) {
 			waitForSpaceTrimKey();
 		}
+
+		// In fallback mode: track accepted characters, or exit on space
+		if (isInPredictiveFallback()) {
+			if (Characters.getSpace(mLanguage).equals(word)) {
+				exitPredictiveFallback();
+			} else if (!word.isEmpty()) {
+				fallbackCharsTyped += word.length();
+			}
+		}
 	}
 
 
@@ -161,6 +170,21 @@ abstract public class SuggestionHandler extends TypingHandler {
 
 		final ArrayList<String> suggestions = mInputMode.getSuggestions();
 		suggestionOps.set(suggestions, mInputMode.getRecommendedSuggestionIdx(), mInputMode.containsGeneratedSuggestions());
+
+		// Predictive fallback: when no dictionary words match, accept the current best guess
+		// and switch to manual (ABC) mode so the user can type a custom word letter by letter.
+		if (!isInPredictiveFallback() && InputModeKind.isPredictive(mInputMode) && mInputMode.shouldFallbackToManual()) {
+			String currentWord = suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength());
+			if (!currentWord.isEmpty()) {
+				appHacks.setComposingText(currentWord);
+			}
+			textField.finishComposingText();
+			mInputMode.onAcceptSuggestion(currentWord);
+			suggestionOps.set(null);
+			enterPredictiveFallback(currentWord.length());
+			onAfterSuggestionsHandled(onComplete, surroundingText, "", false);
+			return;
+		}
 
 		// either accept the first one automatically (when switching from punctuation to text
 		// or vice versa), or schedule auto-accept in N seconds (in ABC mode)
