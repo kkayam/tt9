@@ -171,18 +171,30 @@ abstract public class SuggestionHandler extends TypingHandler {
 		final ArrayList<String> suggestions = mInputMode.getSuggestions();
 		suggestionOps.set(suggestions, mInputMode.getRecommendedSuggestionIdx(), mInputMode.containsGeneratedSuggestions());
 
-		// Predictive fallback: when no dictionary words match, accept the current best guess
-		// and switch to manual (ABC) mode so the user can type a custom word letter by letter.
+		// Predictive fallback: when no dictionary words match, commit everything except the
+		// last key press, switch to ABC mode, and replay the last key so it shows ABC letters.
 		if (!isInPredictiveFallback() && InputModeKind.isPredictive(mInputMode) && mInputMode.shouldFallbackToManual()) {
-			String currentWord = suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength());
-			if (!currentWord.isEmpty()) {
-				appHacks.setComposingText(currentWord);
+			int lastKey = mInputMode.getLastKey();
+			int seqLen = mInputMode.getSequenceLength();
+
+			// Commit the word up to (but not including) the last key press
+			String wordBeforeLastKey = seqLen > 1
+				? suggestionOps.getCurrent(mLanguage, seqLen - 1)
+				: "";
+			if (!wordBeforeLastKey.isEmpty()) {
+				appHacks.setComposingText(wordBeforeLastKey);
 			}
 			textField.finishComposingText();
-			mInputMode.onAcceptSuggestion(currentWord);
+			mInputMode.onAcceptSuggestion(wordBeforeLastKey);
 			suggestionOps.set(null);
-			enterPredictiveFallback(currentWord.length());
-			onAfterSuggestionsHandled(onComplete, surroundingText, "", false);
+
+			// Switch to ABC and replay the last key
+			enterPredictiveFallback(wordBeforeLastKey.length());
+			if (lastKey >= 0) {
+				String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
+				mInputMode.onNumber(lastKey, false, 0, surroundingChars);
+				getSuggestions(0, null, null);
+			}
 			return;
 		}
 
