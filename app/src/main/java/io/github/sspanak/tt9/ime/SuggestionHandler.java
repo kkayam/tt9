@@ -92,7 +92,7 @@ abstract public class SuggestionHandler extends TypingHandler {
 			String[] surroundingText = autoCorrectSpace(
 				word,
 				textField.getSurroundingStringForAutoAssistance(settings, mInputMode),
-				true,
+				false,
 				fromKey
 			);
 
