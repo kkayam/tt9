@@ -258,19 +258,13 @@ public class WordPredictions extends Predictions {
 	 * when there are many textonyms for a single sequence.
 	 */
 	public void onAccept(String word, String sequence) {
-		if (word == null) {
-			return;
-		}
-
-		// Auto-add the word as a custom word if it doesn't already exist
-		DataStore.putSilently(language, word);
-
 		if (
+			word == null
 			// If the word is the first suggestion, we have already guessed it right, and it makes no
 			// sense to store it as a popular pair or increase its priority. However, if the stem has been
 			// set using word filtering, the user has probably tried to search for a word that has not been
 			// displayed at the beginning. In this case, we process it after all.
-			!words.isEmpty() && words.get(0).equals(word) && stem.isEmpty()
+			|| (!words.isEmpty() && words.get(0).equals(word) && stem.isEmpty())
 		) {
 			return;
 		}
