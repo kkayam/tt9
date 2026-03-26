@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 
+import io.github.sspanak.tt9.db.DataStore;
 import io.github.sspanak.tt9.db.words.DictionaryLoader;
 import io.github.sspanak.tt9.hacks.InputType;
 import io.github.sspanak.tt9.ime.helpers.CursorOps;
@@ -337,6 +338,16 @@ public abstract class TypingHandler extends KeyPadHandler {
 		}
 
 		mindReader.setContext(mInputMode, mLanguage, surroundingChars, text);
+
+		// Auto-add unknown words when spacebar finishes a word
+		if (Characters.getSpace(mLanguage).equals(text) && surroundingChars[0] != null && !surroundingChars[0].isEmpty()) {
+			String space = Characters.getSpace(mLanguage);
+			int spaceIdx = surroundingChars[0].lastIndexOf(space);
+			String finishedWord = spaceIdx >= 0 ? surroundingChars[0].substring(spaceIdx + space.length()) : surroundingChars[0];
+			if (!finishedWord.isEmpty()) {
+				DataStore.putSilently(mLanguage, finishedWord);
+			}
+		}
 
 		// "type" and accept the new word
 		mInputMode.onAcceptSuggestion(text);
