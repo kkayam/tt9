@@ -289,6 +289,16 @@ public abstract class TypingHandler extends KeyPadHandler {
 			mindReader.setContext(mInputMode, mLanguage, surroundingChars, lastWord);
 		}
 
+		// Auto-add unknown words to dictionary when spacebar (key 0) finishes a word
+		if (key == 0 && surroundingChars[0] != null && !surroundingChars[0].isEmpty()) {
+			String space = Characters.getSpace(mLanguage);
+			int spaceIdx = surroundingChars[0].lastIndexOf(space);
+			String finishedWord = spaceIdx >= 0 ? surroundingChars[0].substring(spaceIdx + space.length()) : surroundingChars[0];
+			if (!finishedWord.isEmpty()) {
+				DataStore.putSilently(mLanguage, finishedWord);
+			}
+		}
+
 		// Auto-adjust the text case before each word/char, if the InputMode supports it.
 		mInputMode.determineNextWordTextCase(surroundingChars[0], key);
 
@@ -339,7 +349,7 @@ public abstract class TypingHandler extends KeyPadHandler {
 
 		mindReader.setContext(mInputMode, mLanguage, surroundingChars, text);
 
-		// Auto-add unknown words when spacebar finishes a word
+		// Auto-add unknown words to dictionary when spacebar finishes a word
 		if (Characters.getSpace(mLanguage).equals(text) && surroundingChars[0] != null && !surroundingChars[0].isEmpty()) {
 			String space = Characters.getSpace(mLanguage);
 			int spaceIdx = surroundingChars[0].lastIndexOf(space);
