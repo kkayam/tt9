@@ -160,7 +160,6 @@ abstract public class CommandHandler extends TextEditingHandler {
 
 		// Clear predictive fallback state on explicit mode switch
 		inPredictiveFallback = false;
-		fallbackCharsTyped = 0;
 
 		suggestionOps.cancelDelayedAccept();
 		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
@@ -205,7 +204,6 @@ abstract public class CommandHandler extends TextEditingHandler {
 		}
 
 		inPredictiveFallback = false;
-		fallbackCharsTyped = 0;
 
 		suggestionOps.cancelDelayedAccept();
 		stopVoiceInput();

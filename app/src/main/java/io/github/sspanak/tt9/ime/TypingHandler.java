@@ -52,7 +52,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 
 	// predictive-to-manual fallback
 	protected boolean inPredictiveFallback = false;
-	protected int fallbackCharsTyped = 0;
 
 	// output: mind-reading
 	@NonNull protected final MindReader mindReader = new MindReader();
@@ -87,7 +86,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		}
 
 		inPredictiveFallback = true;
-		fallbackCharsTyped = initialChars;
 
 		mInputMode = InputMode.getInstance(settings, mLanguage, inputType, textField, InputMode.MODE_ABC);
 		determineTextCase();
@@ -109,7 +107,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		}
 
 		inPredictiveFallback = false;
-		fallbackCharsTyped = 0;
 
 		mInputMode = InputMode.getInstance(settings, mLanguage, inputType, textField, InputMode.MODE_PREDICTIVE);
 		determineTextCase();
@@ -151,7 +148,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 			return false;
 		}
 		inPredictiveFallback = false;
-		fallbackCharsTyped = 0;
 		settings.setDefaultCharOrder(mLanguage, false);
 		resetKeyRepeat();
 		mInputMode = determineInputMode();
@@ -195,7 +191,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 
 	protected void onFinishTyping() {
 		inPredictiveFallback = false;
-		fallbackCharsTyped = 0;
 		if (shiftStateDebounceHandler != null) {
 			shiftStateDebounceHandler.removeCallbacksAndMessages(null);
 			shiftStateDebounceHandler = null;
@@ -246,11 +241,11 @@ public abstract class TypingHandler extends KeyPadHandler {
 			recompose(repeat, !textSelection.isEmpty());
 		}
 
-		// In predictive fallback (ABC mode): track chars deleted to detect when the custom word
-		// is completely erased, which exits the fallback back to predictive mode.
+		// In predictive fallback (ABC mode): exit when the cursor is at the start of the field
+		// or immediately after a space — meaning the entire custom word has been erased.
 		if (inPredictiveFallback && !wasMidLetterSelection) {
-			fallbackCharsTyped--;
-			if (fallbackCharsTyped <= 0) {
+			String beforeCursor = textField.getStringBeforeCursor(1);
+			if (beforeCursor.isEmpty() || beforeCursor.equals(Characters.getSpace(mLanguage))) {
 				exitPredictiveFallback();
 			}
 		}
@@ -553,7 +548,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		if (CursorOps.isMovedWhileTyping(newSelStart, newSelEnd, candidatesStart, candidatesEnd)) {
 			stopWaitingForSpaceTrimKey();
 			inPredictiveFallback = false;
-			fallbackCharsTyped = 0;
 			mInputMode.onCursorMove(suggestionOps.acceptIncomplete());
 			mindReader.clearContext();
 			return;

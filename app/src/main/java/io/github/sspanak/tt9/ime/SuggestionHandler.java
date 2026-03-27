@@ -106,13 +106,9 @@ abstract public class SuggestionHandler extends TypingHandler {
 			waitForSpaceTrimKey();
 		}
 
-		// In fallback mode: track accepted characters, or exit on space
-		if (isInPredictiveFallback()) {
-			if (Characters.getSpace(mLanguage).equals(word)) {
-				exitPredictiveFallback();
-			} else if (!word.isEmpty()) {
-				fallbackCharsTyped += word.length();
-			}
+		// In fallback mode: exit when a space is accepted
+		if (isInPredictiveFallback() && Characters.getSpace(mLanguage).equals(word)) {
+			exitPredictiveFallback();
 		}
 	}
 
