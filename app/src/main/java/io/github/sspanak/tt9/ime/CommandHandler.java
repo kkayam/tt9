@@ -334,12 +334,14 @@ abstract public class CommandHandler extends TextEditingHandler {
 	}
 
 	public void onEmojiSelected() {
+		int currentIndex = suggestionOps.getCurrentIndex();
 		String emoji = suggestionOps.getCurrent();
 		if (!emoji.isEmpty()) {
 			textField.setText(emoji);
 		}
-		// Stay in emoji mode - re-show the same category
-		showEmojiCategory();
+		// Stay in emoji mode - re-show the same category, preserving selection position
+		ArrayList<String> emojis = Emoji.getEmoji(emojiCategoryIndex);
+		suggestionOps.set(emojis, currentIndex, false);
 	}
 
 	public void showSettings() {
