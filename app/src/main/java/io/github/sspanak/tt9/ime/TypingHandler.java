@@ -292,6 +292,11 @@ public abstract class TypingHandler extends KeyPadHandler {
 			if (!finishedWord.isEmpty()) {
 				DataStore.putSilently(mLanguage, finishedWord);
 			}
+			
+			// Space finishes the current word in fallback mode, restoring predictive
+			if (inPredictiveFallback) {
+				exitPredictiveFallback();
+			}
 		}
 
 		// Auto-adjust the text case before each word/char, if the InputMode supports it.
