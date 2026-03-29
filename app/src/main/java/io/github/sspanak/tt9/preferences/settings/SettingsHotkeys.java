@@ -27,7 +27,7 @@ import io.github.sspanak.tt9.commands.CommandCollection;
 import io.github.sspanak.tt9.util.Logger;
 
 public class SettingsHotkeys extends SettingsVirtualNumpad {
-	private static final String HOTKEY_VERSION = "hotkeys_v6";
+	private static final String HOTKEY_VERSION = "hotkeys_v7";
 
 
 	SettingsHotkeys(Context context) { super(context); }
@@ -88,10 +88,10 @@ public class SettingsHotkeys extends SettingsVirtualNumpad {
 			String.valueOf(KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_DPAD_RIGHT) ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_UNKNOWN)
 		);
 
-		getPrefsEditor().putString(CmdCommandPalette.ID, String.valueOf(-KeyEvent.KEYCODE_STAR)); // negative means "hold"
+		getPrefsEditor().putString(CmdCommandPalette.ID, String.valueOf(KeyEvent.KEYCODE_STAR)); // emoji mode on press
 		getPrefsEditor().putString(CmdNextInputMode.ID, String.valueOf(KeyEvent.KEYCODE_POUND));
 		getPrefsEditor().putString(CmdNextLanguage.ID, String.valueOf(-KeyEvent.KEYCODE_POUND)); // negative means "hold"
-		getPrefsEditor().putString(CmdShift.ID, String.valueOf(KeyEvent.KEYCODE_STAR));
+		getPrefsEditor().putString(CmdShift.ID, String.valueOf(-KeyEvent.KEYCODE_STAR)); // negative means "hold"
 		getPrefsEditor().putString(
 			CmdSpaceKorean.ID,
 			String.valueOf(KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_SPACE) ? KeyEvent.KEYCODE_SPACE : KeyEvent.KEYCODE_STAR)

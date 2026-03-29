@@ -2,6 +2,8 @@ package io.github.sspanak.tt9.ime;
 
 import android.view.KeyEvent;
 
+import java.util.ArrayList;
+
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.commands.CmdAddWord;
 import io.github.sspanak.tt9.commands.CmdEditWord;
@@ -16,10 +18,22 @@ import io.github.sspanak.tt9.ui.dialogs.AddWordDialog;
 import io.github.sspanak.tt9.ui.dialogs.ChangeLanguageDialog;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.Ternary;
+import io.github.sspanak.tt9.util.chars.Emoji;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 import io.github.sspanak.tt9.util.sys.SystemSettings;
 
 abstract public class CommandHandler extends TextEditingHandler {
+	protected boolean inEmojiMode = false;
+	private int emojiCategoryIndex = 0;
+	@Override
+	public boolean onBackspace(int repeat) {
+		if (inEmojiMode) {
+			exitEmojiMode();
+			return true;
+		}
+		return super.onBackspace(repeat);
+	}
+
 	@Override
 	protected Ternary onBack() {
 		if (hideCommandPalette()) {
@@ -34,6 +48,10 @@ abstract public class CommandHandler extends TextEditingHandler {
 	protected boolean onNumber(int key, boolean hold, int repeat) {
 		if (statusBar.isErrorShown()) {
 			resetStatus();
+		}
+
+		if (inEmojiMode) {
+			exitEmojiMode();
 		}
 
 		if (!shouldBeOff() && mainView.isCommandPaletteShown()) {
@@ -285,6 +303,44 @@ abstract public class CommandHandler extends TextEditingHandler {
 		return true;
 	}
 
+
+	public boolean isInEmojiMode() {
+		return inEmojiMode;
+	}
+
+	public void enterEmojiMode() {
+		suggestionOps.cancelDelayedAccept();
+		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
+		inEmojiMode = true;
+		emojiCategoryIndex = 0;
+		showEmojiCategory();
+	}
+
+	public void nextEmojiCategory() {
+		emojiCategoryIndex = (emojiCategoryIndex + 1) % Emoji.getMaxEmojiLevel();
+		showEmojiCategory();
+	}
+
+	private void showEmojiCategory() {
+		ArrayList<String> emojis = Emoji.getEmoji(emojiCategoryIndex);
+		suggestionOps.set(emojis, 0, false);
+	}
+
+	public void exitEmojiMode() {
+		inEmojiMode = false;
+		emojiCategoryIndex = 0;
+		suggestionOps.set(null);
+		resetStatus();
+	}
+
+	public void onEmojiSelected() {
+		String emoji = suggestionOps.getCurrent();
+		if (!emoji.isEmpty()) {
+			textField.setText(emoji);
+		}
+		// Stay in emoji mode - re-show the same category
+		showEmojiCategory();
+	}
 
 	public void showSettings() {
 		suggestionOps.cancelDelayedAccept();

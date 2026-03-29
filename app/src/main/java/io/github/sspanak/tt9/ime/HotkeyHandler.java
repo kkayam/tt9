@@ -67,6 +67,11 @@ public abstract class HotkeyHandler extends CommandHandler {
 		suggestionOps.cancelDelayedAccept();
 		stopWaitingForSpaceTrimKey();
 
+		if (isInEmojiMode()) {
+			onEmojiSelected();
+			return true;
+		}
+
 		if (suggestionOps.containsOnlyGuesses()) {
 			onAcceptSuggestionManually(suggestionOps.acceptCurrent(), KeyEvent.KEYCODE_ENTER);
 			return true;
@@ -160,7 +165,7 @@ public abstract class HotkeyHandler extends CommandHandler {
 		}
 
 		if (keyCode == settings.getKeyCommandPalette()) {
-			return onKeyCommandPalette(validateOnly);
+			return onKeyEmoji(validateOnly);
 		}
 
 		if (keyCode == settings.getKeyEditText()) {
@@ -260,6 +265,26 @@ public abstract class HotkeyHandler extends CommandHandler {
 			forceShowWindow();
 		}
 
+		return true;
+	}
+
+
+	private boolean onKeyEmoji(boolean validateOnly) {
+		if (shouldBeOff()) {
+			return false;
+		}
+
+		if (validateOnly) {
+			return true;
+		}
+
+		if (isInEmojiMode()) {
+			nextEmojiCategory();
+		} else {
+			enterEmojiMode();
+		}
+
+		forceShowWindow();
 		return true;
 	}
 
