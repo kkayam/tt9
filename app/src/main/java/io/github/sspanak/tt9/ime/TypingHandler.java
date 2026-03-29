@@ -364,11 +364,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		mInputMode.determineNextWordTextCase(surroundingChars[0], -1);
 		updateShiftState(surroundingChars[0], false, false);
 
-		// Space finishes the current word in fallback mode, restoring predictive
-		if (inPredictiveFallback && Characters.getSpace(mLanguage).equals(text)) {
-			exitPredictiveFallback();
-		}
-
 		return true;
 	}
 
