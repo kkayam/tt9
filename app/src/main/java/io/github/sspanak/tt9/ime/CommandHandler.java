@@ -322,7 +322,12 @@ abstract public class CommandHandler extends TextEditingHandler {
 	}
 
 	private void showEmojiCategory() {
-		ArrayList<String> emojis = Emoji.getEmoji(emojiCategoryIndex);
+		ArrayList<String> emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
+		// If recently used is empty, skip to next category
+		if (emojis.isEmpty() && emojiCategoryIndex == 0) {
+			emojiCategoryIndex = 1;
+			emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
+		}
 		suggestionOps.set(emojis, 0, false);
 	}
 
@@ -338,9 +343,10 @@ abstract public class CommandHandler extends TextEditingHandler {
 		String emoji = suggestionOps.getCurrent();
 		if (!emoji.isEmpty()) {
 			textField.setText(emoji);
+			Emoji.recordEmojiUsage(getApplicationContext(), emoji);
 		}
 		// Stay in emoji mode - re-show the same category, preserving selection position
-		ArrayList<String> emojis = Emoji.getEmoji(emojiCategoryIndex);
+		ArrayList<String> emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
 		suggestionOps.set(emojis, currentIndex, false);
 	}
 
