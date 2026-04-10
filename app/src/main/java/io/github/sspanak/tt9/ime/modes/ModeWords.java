@@ -320,6 +320,17 @@ class ModeWords extends ModeCheonjiin {
 	 * See: WordPredictions.generatePossibleCompletions()
 	 */
 	@Override
+	protected boolean loadEmojis() {
+		// Emojis are now handled via the dedicated emoji mode (star key), not key 1.
+		return false;
+	}
+
+	@Override
+	protected boolean shouldDisplayEmojis() {
+		return false;
+	}
+
+	@Override
 	public void loadSuggestions(String currentWord) {
 		if (disablePredictions || loadPreferredChar() || loadSpecialCharacters() || loadEmojis()) {
 			predictions.reset();
