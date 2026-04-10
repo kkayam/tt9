@@ -275,7 +275,14 @@ public abstract class TypingHandler extends KeyPadHandler {
 		// a new word. In case we do accept it, we preserve the suggestion list instead of clearing,
 		// to prevent flashing while the next suggestions are being loaded.
 
-		if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent(), key, hold) || shouldAcceptGuessesOnNumber(key)) {
+		// In ABC fallback mode, key 0 (space) must commit the in-progress letter before
+		// the mode resets it. ModeABC's 3-arg shouldAcceptPreviousSuggestion returns false,
+		// so we handle it explicitly here.
+		if (inPredictiveFallback && key == 0 && !suggestionOps.isEmpty()) {
+			lastWord = suggestionOps.acceptIncompleteAndKeepList();
+			mInputMode.onAcceptSuggestion(lastWord);
+			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
+		} else if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent(), key, hold) || shouldAcceptGuessesOnNumber(key)) {
 			// WARNING! Ensure the code after "acceptIncompleteAndKeepList()" does not depend on
 			// the suggestions in SuggestionOps, since we don't clear that list.
 			lastWord = suggestionOps.acceptIncompleteAndKeepList();
