@@ -144,24 +144,6 @@ public class InputType extends StandardInputType {
 
 
 	/**
-	 * Determines whether to enable the MindReader for the current field. The likely candidates are
-	 * multiline text fields, that do not have TYPE_TEXT_FLAG_NO_SUGGESTIONS (app does not want learning),
-	 * and are not of type URL, password, and others where predictions make no sense.
-	 */
-	public boolean notMindReadableText() {
-		return
-			field == null
-			|| (field.inputType & EditorInfo.TYPE_TEXT_FLAG_NO_SUGGESTIONS) == EditorInfo.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-			|| !isMultilineText()
-			|| isEmail()
-			|| isNumeric()
-			|| isPassword()
-			|| isPersonName()
-			|| isUri();
-	}
-
-
-	/**
 	 * Third-party apps are usually designed for a touch screen, so the least we can do is convert
 	 * DPAD_CENTER to ENTER for typing new lines, regardless of the implementation of the OK key.
 	 */

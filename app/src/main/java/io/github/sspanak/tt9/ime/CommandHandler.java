@@ -247,8 +247,6 @@ abstract public class CommandHandler extends TextEditingHandler {
 			DictionaryLoader.autoLoad(this, settings, mLanguage);
 		}
 
-		mindReader.setLanguage(mLanguage);
-
 		forceShowWindow();
 	}
 
@@ -276,7 +274,7 @@ abstract public class CommandHandler extends TextEditingHandler {
 		settings.saveTextCase(mInputMode.getTextCase());
 
 		if (currentWord.isEmpty() && !suggestionOps.isEmpty()) {
-			// if we have set the suggestions from a different source, e.g. Clipboard or MindReader,
+			// if we have set the suggestions from a different source, e.g. Clipboard,
 			// they won't be in the InputMode's state, so adjust the list directly, without any specific rules
 			suggestionOps.setTextCase(mLanguage, mInputMode.getTextCase());
 			appHacks.setComposingText(suggestionOps.getCurrent());
@@ -295,8 +293,6 @@ abstract public class CommandHandler extends TextEditingHandler {
 		if (InputModeKind.isRecomposing(mInputMode)) {
 			appHacks.setComposingTextPartsWithHighlightedJoining(mInputMode.getWordStem() + suggestionOps.getCurrent(), mInputMode.getRecomposingSuffix());
 		} else {
-			mindReader.setTextCase(mInputMode.getTextCaseRaw());
-			suggestionOps.addGuesses(mindReader.getGuesses());
 			appHacks.setComposingText(suggestionOps.getCurrent());
 		}
 

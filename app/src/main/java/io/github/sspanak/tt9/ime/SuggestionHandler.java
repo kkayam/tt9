@@ -2,7 +2,6 @@ package io.github.sspanak.tt9.ime;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.view.inputmethod.EditorInfo;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
@@ -16,20 +15,11 @@ import io.github.sspanak.tt9.db.words.DictionaryLoader;
 import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.ime.modes.InputModeKind;
 import io.github.sspanak.tt9.ui.UI;
-import io.github.sspanak.tt9.util.Text;
-import io.github.sspanak.tt9.util.TextTools;
 import io.github.sspanak.tt9.util.chars.Characters;
 import io.github.sspanak.tt9.util.sys.Clipboard;
 
 abstract public class SuggestionHandler extends TypingHandler {
 	@Nullable private Handler suggestionHandler;
-
-
-	@Override
-	protected void setInputField(EditorInfo field) {
-		super.setInputField(field);
-		mindReader.setInputType(inputType);
-	}
 
 
 	private Handler getAsyncHandler() {
@@ -48,7 +38,6 @@ abstract public class SuggestionHandler extends TypingHandler {
 			suggestionHandler = null;
 		}
 
-		mindReader.clearContext();
 		super.onFinishTyping();
 	}
 
@@ -69,7 +58,6 @@ abstract public class SuggestionHandler extends TypingHandler {
 			mInputMode.getFirstKey()
 		);
 		mInputMode.determineNextWordTextCase(surroundingText[0], -1);
-		mindReader.setContext(mInputMode, mLanguage, surroundingText, lastWord);
 
 		return surroundingText;
 	}
@@ -99,7 +87,6 @@ abstract public class SuggestionHandler extends TypingHandler {
 			mInputMode.determineNextWordTextCase(surroundingText[0], -1);
 			updateShiftState(surroundingText[0], false, false);
 			resetKeyRepeat();
-			guessNextWord(surroundingText, word);
 		}
 
 		if (!Characters.getSpace(mLanguage).equals(word)) {
@@ -218,11 +205,6 @@ abstract public class SuggestionHandler extends TypingHandler {
 			appHacks.setComposingTextWithHighlightedStem(trimmedWord, mInputMode.getWordStem(), mInputMode.isStemFilterFuzzy());
 		}
 
-		// append guesses from the MindReader
-		if (loadingId != 0 && loadingId == mindReader.getLoadingId()) {
-			handleOrWaitForGuesses();
-		}
-
 		onAfterSuggestionsHandled(onComplete, surroundingText, trimmedWord, suggestions.isEmpty());
 	}
 
@@ -243,90 +225,4 @@ abstract public class SuggestionHandler extends TypingHandler {
 	}
 
 
-	@Override
-	protected void autoCompleteOnNumber(double loadingId, @NonNull String[] surroundingText, @Nullable String lastWord, int number) {
-		if (mLanguage.hasLettersOnAllKeys() || mLanguage.isTranscribed()) {
-			return;
-		}
-
-		if (mLanguage.hasSpaceBetweenWords()) {
-			autoCompleteOnNumberRegularLanguage(loadingId, surroundingText, lastWord, number);
-		} else {
-			autoCompleteOnNumberNoSpaceLanguage(loadingId, surroundingText, number);
-		}
-	}
-
-
-	private void autoCompleteOnNumberNoSpaceLanguage(double loadingId, @NonNull String[] surroundingText, int number) {
-		if (mInputMode.getSequenceLength() == 1) {
-			autoCompleteWord(loadingId, surroundingText, number);
-		}
-	}
-
-
-	private void autoCompleteOnNumberRegularLanguage(double loadingId, @NonNull String[] surroundingText, @Nullable String lastWord, int number) {
-		if (mInputMode.getSequenceLength() != 1 || new Text(mLanguage, surroundingText[1]).startsWithWord()) {
-			mindReader.clearContext();
-			return;
-		}
-
-		if (surroundingText[0].isEmpty() || Characters.getSpace(mLanguage).equals(lastWord) || TextTools.endsWithSpace(surroundingText[0])) {
-			autoCompleteWord(loadingId, surroundingText, number);
-		}
-	}
-
-
-	private void autoCompleteWord(double loadingId, @NonNull String[] surroundingText, int number) {
-		mindReader
-			.setCurrentGuessHandler(null)
-			.setTextCase(mInputMode.getTextCaseRaw())
-			.setLanguage(mLanguage)
-			.complete(loadingId, mInputMode, surroundingText, number);
-	}
-
-
-	@Override
-	protected void guessNextWord(@NonNull String[] surroundingText, @Nullable String lastWord) {
-		mindReader
-			.setTextCase(mInputMode.getTextCaseRaw())
-			.setLanguage(mLanguage)
-			.guess(mInputMode, surroundingText, lastWord, this::handleGuessesAsync);
-	}
-
-
-	@WorkerThread
-	private void handleGuessesAsync() {
-		final Handler handler = getAsyncHandler();
-		handler.removeCallbacks(this::handleGuesses);
-		handler.post(this::handleGuesses);
-	}
-
-
-	@MainThread
-	private boolean handleGuesses() {
-		final ArrayList<String> guesses = mindReader.getGuesses();
-		if (guesses.isEmpty()) {
-			return false;
-		}
-
-		suggestionOps.cancelDelayedAccept();
-		appHacks.setComposingText(guesses.get(0));
-		suggestionOps.addGuesses(guesses);
-
-		return true;
-	}
-
-
-	@MainThread
-	private void handleOrWaitForGuesses() {
-		if (!handleGuesses()) {
-			mindReader.setCurrentGuessHandler(this::handleGuessesAsync);
-		}
-	}
-
-
-	@Override
-	protected boolean shouldAcceptGuessesOnNumber(int number) {
-		return number == 0 && !mLanguage.hasLettersOnAllKeys() && suggestionOps.containsOnlyGuesses();
-	}
 }

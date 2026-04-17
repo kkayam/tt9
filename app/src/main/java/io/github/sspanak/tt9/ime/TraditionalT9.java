@@ -349,14 +349,12 @@ public class TraditionalT9 extends PremiumHandler {
 	private void runHeavyInitTasks() {
 		LanguageCollection.init(getApplicationContext());
 		DataStore.init(getApplicationContext());
-		mindReader.init(getApplicationContext()); // create the database tables, if they don't exist already
 		Logger.d(LOG_TAG, "Heavy initialization tasks completed successfully");
 	}
 
 
 	private void runBackgroundTasks() {
 		SupremeExecutor.submit(() -> {
-			mindReader.persist();
 			voiceInputOps.forceAlternativeInput(false).enableOfflineMode();
 			if (!DictionaryLoader.getInstance(this).isRunning()) {
 				DataStore.saveWordPairs();

@@ -105,41 +105,4 @@ public class InsertOps {
 
 		db.execSQL(sql.toString());
 	}
-
-
-	public int insertMindReaderTokens(@NonNull SQLiteDatabase db, int langId, @NonNull String[] tokens) {
-		if (tokens.length == 0 || langId <= 0) {
-			return 0;
-		}
-
-		final String table = Tables.getMindReaderTokens(langId);
-		final ContentValues values = new ContentValues();
-
-		for (int i = 0; i < tokens.length; i++) {
-			values.put("idx", i);
-			values.put("token", tokens[i]);
-			db.insert(table, null, values);
-		}
-
-		return tokens.length;
-	}
-
-
-	public int insertMindReaderNgrams(@NonNull SQLiteDatabase db, int langId, long[] before, int[] next) {
-		if (langId <= 0) {
-			return 0;
-		}
-
-		final String table = Tables.getMindReaderNgrams(langId);
-		final ContentValues values = new ContentValues();
-
-		for (int i = 0, end = before.length; i < end; i++) {
-			values.put("idx", i);
-			values.put("before", before[i]);
-			values.put("next", next[i]);
-			db.insert(table, null, values);
-		}
-
-		return before.length;
-	}
 }

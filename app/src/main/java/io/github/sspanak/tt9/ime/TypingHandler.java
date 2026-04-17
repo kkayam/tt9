@@ -19,7 +19,6 @@ import io.github.sspanak.tt9.ime.helpers.InputModeValidator;
 import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.ime.helpers.TextField;
 import io.github.sspanak.tt9.ime.helpers.TextSelection;
-import io.github.sspanak.tt9.ime.mindreader.MindReader;
 import io.github.sspanak.tt9.ime.modes.InputMode;
 import io.github.sspanak.tt9.ime.modes.InputModeKind;
 import io.github.sspanak.tt9.languages.Language;
@@ -52,12 +51,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 
 	// predictive-to-manual fallback
 	protected boolean inPredictiveFallback = false;
-
-	// output: mind-reading
-	@NonNull protected final MindReader mindReader = new MindReader();
-	abstract protected void autoCompleteOnNumber(double loadingId, @NonNull String[] surroundingChars, @Nullable String lastWord, int number);
-	abstract protected void guessNextWord(@NonNull String[] surroundingText, @Nullable String lastWord);
-	abstract protected boolean shouldAcceptGuessesOnNumber(int key);
 
 
 	protected void createSuggestionBar() {
@@ -121,13 +114,11 @@ public abstract class TypingHandler extends KeyPadHandler {
 	@Override
 	protected void onInit() {
 		super.onInit();
-		mindReader.setSettings(settings);
 	}
 
 
 	protected void cleanUp() {
 		InputConnectionAsync.destroy();
-		mindReader.destroy();
 	}
 
 
@@ -157,9 +148,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		// don't use surroundingText cache on start up
 		final String[] surroundingText = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
 		updateShiftState(surroundingText[0], false, false);
-		mindReader
-			.setLanguage(mLanguage)
-			.setContext(mInputMode, mLanguage, surroundingText, null);
 
 		return true;
 	}
@@ -208,8 +196,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		if (InputModeKind.isPassthrough(mInputMode)) {
 			return false;
 		}
-
-		mindReader.clearContext();
 
 		if (appHacks.onBackspace(settings, mInputMode)) {
 			mInputMode.reset();
@@ -282,13 +268,12 @@ public abstract class TypingHandler extends KeyPadHandler {
 			lastWord = suggestionOps.acceptIncompleteAndKeepList();
 			mInputMode.onAcceptSuggestion(lastWord);
 			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
-		} else if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent(), key, hold) || shouldAcceptGuessesOnNumber(key)) {
+		} else if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent(), key, hold)) {
 			// WARNING! Ensure the code after "acceptIncompleteAndKeepList()" does not depend on
 			// the suggestions in SuggestionOps, since we don't clear that list.
 			lastWord = suggestionOps.acceptIncompleteAndKeepList();
 			mInputMode.onAcceptSuggestion(lastWord);
 			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
-			mindReader.setContext(mInputMode, mLanguage, surroundingChars, lastWord);
 		}
 
 		// Auto-add unknown words to dictionary when spacebar (key 0) finishes a word
@@ -318,9 +303,7 @@ public abstract class TypingHandler extends KeyPadHandler {
 			scrollSuggestions(false);
 			suggestionOps.scheduleDelayedAccept(mInputMode.getAutoAcceptTimeout());
 		} else {
-			final double loadingId = Math.random();
-			autoCompleteOnNumber(loadingId, surroundingChars, lastWord, key);
-			getSuggestions(loadingId, null, null);
+			getSuggestions(Math.random(), null, null);
 		}
 
 		return true;
@@ -353,8 +336,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 				-1
 			);
 		}
-
-		mindReader.setContext(mInputMode, mLanguage, surroundingChars, text);
 
 		// "type" and accept the new word
 		mInputMode.onAcceptSuggestion(text);
@@ -532,7 +513,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 		// in case the app has modified the InputField and moved the cursor without notifying us...
 		if (CursorOps.isInputReset(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)) {
 			stopWaitingForSpaceTrimKey();
-			mindReader.clearContext();
 			if (!appHacks.acceptComposingTextOnCursorReset(mInputMode, suggestionOps, textField)) {
 				suggestionOps.clear();
 			}
@@ -546,7 +526,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 			stopWaitingForSpaceTrimKey();
 			inPredictiveFallback = false;
 			mInputMode.onCursorMove(suggestionOps.acceptIncomplete());
-			mindReader.clearContext();
 			return;
 		}
 
