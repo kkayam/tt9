@@ -65,6 +65,10 @@ public abstract class TypingHandler extends BaseHandler {
 	// predictive-to-manual fallback
 	protected boolean inPredictiveFallback = false;
 
+	// True when the suggestion bar is showing a next-word prediction (from word pairs) that
+	// hasn't been accepted yet. Space/OK accepts it; any other action clears it.
+	protected boolean hasPendingNextWordPrediction = false;
+
 
 	protected void createSuggestionBar() {
 		suggestionOps = new SuggestionOps(this, settings, mainView, appHacks, inputType, textField, statusBar, this::onAcceptSuggestionsDelayed, this::onOK);
@@ -448,15 +452,18 @@ public abstract class TypingHandler extends BaseHandler {
 
 		hold = hold && settings.getHoldToType();
 
-		// Key 0 is pure Space in all non-numeric modes. No character cycling, no suggestions —
-		// onText commits any in-progress word, types the language-appropriate space character,
-		// and resets the mode, so the suggestion bar falls back to showing the status text.
+		// Key 0 is pure Space in all non-numeric modes. No character cycling —
+		// onText commits any in-progress word (or pending prediction) and types the
+		// language-appropriate space. onText then shows the next-word prediction, if any.
 		if (key == 0 && !hold && !InputModeKind.isNumeric(mInputMode)) {
 			onText(Characters.getSpace(mLanguage), false);
-			resetStatus();
 			mainView.renderDynamicKeys();
 			return true;
 		}
+
+		// User is typing a different word — cancel any pending next-word prediction so
+		// it doesn't leak into the new word.
+		hasPendingNextWordPrediction = false;
 
 		String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
 		String lastWord = null;
@@ -529,8 +536,17 @@ public abstract class TypingHandler extends BaseHandler {
 
 		String[] surroundingChars;
 
-		// accept the previously typed word (if any)
-		String lastWord = suggestionOps.acceptIncomplete();
+		// A pending next-word prediction is shown in the suggestion bar only (no composing
+		// text). Accepting it = typing it as real text via acceptCurrent, which calls
+		// setComposingText + finishComposingText under the hood.
+		String lastWord;
+		if (hasPendingNextWordPrediction && !suggestionOps.isEmpty()) {
+			lastWord = suggestionOps.acceptCurrent();
+		} else {
+			lastWord = suggestionOps.acceptIncomplete();
+		}
+		hasPendingNextWordPrediction = false;
+
 		if (lastWord.isEmpty()) {
 			surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
 		} else {
@@ -558,7 +574,41 @@ public abstract class TypingHandler extends BaseHandler {
 		mInputMode.determineNextWordTextCase(surroundingChars[0], -1);
 		updateShiftState(surroundingChars[0], false, false);
 
+		// After a space, show the most-frequent next-word hint from the word-pair store.
+		// Appears as both a suggestion and composing text so space/OK accept it the same way
+		// any in-progress word does.
+		if (Characters.getSpace(mLanguage).equals(text)) {
+			showNextWordPrediction(lastWord);
+		}
+
 		return true;
+	}
+
+
+	private void showNextWordPrediction(@Nullable String lastCommittedWord) {
+		if (!InputModeKind.isPredictive(mInputMode) || !settings.getPredictWordPairs()) {
+			return;
+		}
+
+		String word1 = (lastCommittedWord != null && !lastCommittedWord.isEmpty())
+			? lastCommittedWord
+			: textField.getTextBeforeCursor(mLanguage, 50).getPreviousWord(false, false, false);
+
+		if (word1 == null || word1.isEmpty()) {
+			return;
+		}
+
+		String predicted = DataStore.getNextWord(mLanguage, word1);
+		if (predicted == null || predicted.isEmpty()) {
+			return;
+		}
+
+		// Suggestion-bar only — no inline composing text. The pending-prediction flag
+		// tells onNumber/onText to accept this via acceptCurrent on the next space/OK.
+		ArrayList<String> suggestions = new ArrayList<>();
+		suggestions.add(predicted);
+		suggestionOps.set(suggestions, 0, false);
+		hasPendingNextWordPrediction = true;
 	}
 
 

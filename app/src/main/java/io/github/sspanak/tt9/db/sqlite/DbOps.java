@@ -386,11 +386,17 @@ public class DbOps {
 			return pairs;
 		}
 
-		String[] select = new String[]{"word1", "word2", "sequence2"};
+		String[] select = new String[]{"word1", "word2", "sequence2", "frequency"};
 
-		try (Cursor cursor = db.query(Tables.getWordPairs(language.getId()), select, null, null, null, null, null, String.valueOf(limit))) {
+		try (Cursor cursor = db.query(Tables.getWordPairs(language.getId()), select, null, null, null, null, "frequency DESC", String.valueOf(limit))) {
 			while (cursor.moveToNext()) {
-				pairs.add(new WordPair(language, cursor.getString(0), cursor.getString(1), cursor.getString(2)));
+				pairs.add(new WordPair(
+					language,
+					cursor.getString(0),
+					cursor.getString(1),
+					cursor.getString(2),
+					cursor.getInt(3)
+				));
 			}
 		}
 
@@ -473,7 +479,7 @@ public class DbOps {
 		}
 
 		StringBuilder sql = new StringBuilder(
-			"INSERT INTO " + Tables.getWordPairs(langId) + " (word1, word2, sequence2) VALUES"
+			"INSERT INTO " + Tables.getWordPairs(langId) + " (word1, word2, sequence2, frequency) VALUES"
 		);
 
 		for (WordPair pair : pairs) {

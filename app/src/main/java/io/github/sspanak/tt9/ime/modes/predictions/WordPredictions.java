@@ -258,19 +258,20 @@ public class WordPredictions extends Predictions {
 	 * when there are many textonyms for a single sequence.
 	 */
 	public void onAccept(String word, String sequence) {
-		if (
-			word == null
-			// If the word is the first suggestion, we have already guessed it right, and it makes no
-			// sense to store it as a popular pair or increase its priority. However, if the stem has been
-			// set using word filtering, the user has probably tried to search for a word that has not been
-			// displayed at the beginning. In this case, we process it after all.
-			|| (!words.isEmpty() && words.get(0).equals(word) && stem.isEmpty())
-		) {
+		if (word == null) {
 			return;
 		}
 
+		// Always record the pair so frequency counts accumulate — the pair store disambiguates
+		// textonyms by frequency, so every accepted word contributes useful signal.
 		pairWithPreviousWord(word, sequence);
-		makeTopWord(word, sequence);
+
+		// Only bump dictionary word frequency if the accepted word wasn't already the top
+		// dictionary match (or if a stem filter was in effect — meaning the user actively
+		// narrowed the list).
+		if (words.isEmpty() || !words.get(0).equals(word) || !stem.isEmpty()) {
+			makeTopWord(word, sequence);
+		}
 	}
 
 

@@ -170,6 +170,14 @@ public class DataStore {
 	}
 
 
+	/**
+	 * Most-frequent word that followed word1 in any context. Returns null if unknown.
+	 */
+	public static String getNextWord(Language language, String word1) {
+		return pairs == null ? null : pairs.getNextWord(language, word1);
+	}
+
+
 	public static void saveWordPairs() {
 		pairs.save();
 	}

@@ -13,14 +13,21 @@ public class WordPair {
 	@NonNull private final String word1;
 	@NonNull private final String word2;
 	private final String sequence2;
+	private int frequency;
 	private Integer hash = null;
 
 
 	public WordPair(Language language, String word1, String word2, String sequence2) {
+		this(language, word1, word2, sequence2, 1);
+	}
+
+
+	public WordPair(Language language, String word1, String word2, String sequence2, int frequency) {
 		this.language = language;
 		this.word1 = word1 != null ? word1.toLowerCase(language.getLocale()) : "";
 		this.word2 = word2 != null ? word2.toLowerCase(language.getLocale()) : "";
 		this.sequence2 = sequence2;
+		this.frequency = Math.max(frequency, 1);
 	}
 
 
@@ -41,15 +48,42 @@ public class WordPair {
 
 
 	@NonNull
+	public String getWord1() {
+		return word1;
+	}
+
+
+	@NonNull
 	public String getWord2() {
 		return word2;
 	}
 
 
+	public String getSequence2() {
+		return sequence2;
+	}
+
+
+	public int getFrequency() {
+		return frequency;
+	}
+
+
+	public void incrementFrequency() {
+		if (frequency < Integer.MAX_VALUE) {
+			frequency++;
+		}
+	}
+
+
+	/**
+	 * Hash over the full triple (word1, word2, sequence2) — distinct word2 options coexist for
+	 * the same (word1, sequence2) so their frequencies can compete.
+	 */
 	@Override
 	public int hashCode() {
 		if (hash == null) {
-			hash = !word1.isEmpty() && sequence2 != null ? (word1 + "," + sequence2).hashCode() : 0;
+			hash = (word1 + "," + word2 + "," + (sequence2 == null ? "" : sequence2)).hashCode();
 		}
 
 		return hash;
@@ -63,13 +97,13 @@ public class WordPair {
 
 
 	public String toSqlRow() {
-		return "('" + word1 + "','" + word2 + "','" + sequence2 + "')";
+		return "('" + word1 + "','" + word2 + "','" + sequence2 + "'," + frequency + ")";
 	}
 
 
 	@NonNull
 	@Override
 	public String toString() {
-		return "(" + word1 + "," + word2 + "," + sequence2 + ")";
+		return "(" + word1 + "," + word2 + "," + sequence2 + ",f=" + frequency + ")";
 	}
 }

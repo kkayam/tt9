@@ -55,13 +55,30 @@ public class WordPairStore extends BaseSyncStore {
 
 		HashMap<WordPair, WordPair> languagePairs = pairs.computeIfAbsent(language.getId(), k -> new HashMap<>());
 
-		if (languagePairs.size() >= SettingsStore.WORD_PAIR_MAX) {
-			languagePairs.remove(languagePairs.keySet().iterator().next());
+		WordPair existing = languagePairs.get(pair);
+		if (existing != null) {
+			existing.incrementFrequency();
+		} else {
+			if (languagePairs.size() >= SettingsStore.WORD_PAIR_MAX) {
+				evictLowestFrequency(languagePairs);
+			}
+			languagePairs.put(pair, pair);
 		}
 
-		languagePairs.put(pair, pair);
-
 		slowestAddTime = Math.max(slowestAddTime, Timer.stop(ADD_TIMER_NAME));
+	}
+
+
+	private static void evictLowestFrequency(HashMap<WordPair, WordPair> languagePairs) {
+		WordPair worst = null;
+		for (WordPair p : languagePairs.values()) {
+			if (worst == null || p.getFrequency() < worst.getFrequency()) {
+				worst = p;
+			}
+		}
+		if (worst != null) {
+			languagePairs.remove(worst);
+		}
 	}
 
 
@@ -81,16 +98,47 @@ public class WordPairStore extends BaseSyncStore {
 
 		HashMap<WordPair, WordPair> languagePairs = pairs.get(language.getId());
 
-		if (languagePairs == null) {
+		if (languagePairs == null || word1 == null || sequence2 == null) {
 			slowestSearchTime = Math.max(slowestSearchTime, Timer.stop(SEARCH_TIMER_NAME));
 			return null;
 		}
 
-		WordPair pair = languagePairs.get(new WordPair(language, word1, null, sequence2));
-		String word2 = pair == null || pair.getWord2().isEmpty() ? null : pair.getWord2();
+		final String lcWord1 = word1.toLowerCase(language.getLocale());
+		WordPair best = null;
+		for (WordPair p : languagePairs.values()) {
+			if (!p.getWord1().equals(lcWord1) || !sequence2.equals(p.getSequence2())) continue;
+			if (best == null || p.getFrequency() > best.getFrequency()) {
+				best = p;
+			}
+		}
 
+		String word2 = best == null ? null : best.getWord2();
 		slowestSearchTime = Math.max(slowestSearchTime, Timer.stop(SEARCH_TIMER_NAME));
 		return word2;
+	}
+
+
+	/**
+	 * Returns the most frequent word2 that followed word1, across any sequence2. Used for the
+	 * post-space next-word hint where no digit sequence has been typed yet.
+	 */
+	@Nullable
+	public String getNextWord(Language language, String word1) {
+		HashMap<WordPair, WordPair> languagePairs = pairs.get(language.getId());
+		if (languagePairs == null || word1 == null || word1.isEmpty()) {
+			return null;
+		}
+
+		final String lcWord1 = word1.toLowerCase(language.getLocale());
+		WordPair best = null;
+		for (WordPair p : languagePairs.values()) {
+			if (!p.getWord1().equals(lcWord1)) continue;
+			if (best == null || p.getFrequency() > best.getFrequency()) {
+				best = p;
+			}
+		}
+
+		return best == null ? null : best.getWord2();
 	}
 
 
