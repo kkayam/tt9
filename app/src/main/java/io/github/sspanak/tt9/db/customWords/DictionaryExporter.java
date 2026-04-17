@@ -8,7 +8,7 @@ import androidx.annotation.NonNull;
 import java.util.ArrayList;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.db.sqlite.ReadOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.util.Logger;
@@ -68,7 +68,7 @@ public class DictionaryExporter extends AbstractExporter {
 			throw new Exception("Could not open database");
 		}
 
-		return new ReadOps().getWords(db, currentLanguage, false).getBytes();
+		return new DbOps().getWords(db, currentLanguage, false).getBytes();
 	}
 
 	private void exportLanguage(Activity activity, Language language) throws Exception {

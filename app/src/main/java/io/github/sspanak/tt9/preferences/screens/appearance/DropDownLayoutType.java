@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.preferences.custom.EnhancedDropDownPreference;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
-import io.github.sspanak.tt9.preferences.settings.SettingsUI;
 
 public class DropDownLayoutType extends EnhancedDropDownPreference {
 	public static final String NAME = "pref_layout_type";
@@ -30,11 +29,11 @@ public class DropDownLayoutType extends EnhancedDropDownPreference {
 	public EnhancedDropDownPreference populate(@NonNull SettingsStore settings) {
 		this.settings = settings;
 
-		add(SettingsUI.LAYOUT_STEALTH, R.string.pref_layout_stealth);
-		add(SettingsUI.LAYOUT_TRAY, R.string.pref_layout_tray);
-		add(SettingsUI.LAYOUT_SMALL, R.string.pref_layout_small);
-		add(SettingsUI.LAYOUT_CLASSIC, R.string.pref_layout_classic);
-		add(SettingsUI.LAYOUT_NUMPAD, R.string.pref_layout_numpad);
+		add(SettingsStore.LAYOUT_STEALTH, R.string.pref_layout_stealth);
+		add(SettingsStore.LAYOUT_TRAY, R.string.pref_layout_tray);
+		add(SettingsStore.LAYOUT_SMALL, R.string.pref_layout_small);
+		add(SettingsStore.LAYOUT_CLASSIC, R.string.pref_layout_classic);
+		add(SettingsStore.LAYOUT_NUMPAD, R.string.pref_layout_numpad);
 		commitOptions();
 		super.setValue(String.valueOf(settings.getMainViewLayout()));
 
@@ -67,7 +66,7 @@ public class DropDownLayoutType extends EnhancedDropDownPreference {
 			item.onLayoutChange(newLayout);
 		}
 
-		if (settings != null && (newLayout == SettingsUI.LAYOUT_CLASSIC || newLayout == SettingsUI.LAYOUT_NUMPAD)) {
+		if (settings != null && (newLayout == SettingsStore.LAYOUT_CLASSIC || newLayout == SettingsStore.LAYOUT_NUMPAD)) {
 			settings.setPreferredLargeLayout(newLayout);
 		}
 

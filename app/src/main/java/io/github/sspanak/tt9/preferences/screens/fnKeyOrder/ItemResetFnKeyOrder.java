@@ -1,9 +1,10 @@
 package io.github.sspanak.tt9.preferences.screens.fnKeyOrder;
 
+
+import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import androidx.preference.Preference;
 
 import io.github.sspanak.tt9.preferences.items.ItemClickable;
-import io.github.sspanak.tt9.preferences.settings.SettingsVirtualNumpad;
 
 public class ItemResetFnKeyOrder extends ItemClickable {
 	public final static String NAME = "pref_reset_fn_key_order";
@@ -23,8 +24,8 @@ public class ItemResetFnKeyOrder extends ItemClickable {
 			return false;
 		}
 
-		left.setText(SettingsVirtualNumpad.DEFAULT_LFN_KEY_ORDER);
-		right.setText(SettingsVirtualNumpad.DEFAULT_RFN_KEY_ORDER);
+		left.setText(SettingsStore.DEFAULT_LFN_KEY_ORDER);
+		right.setText(SettingsStore.DEFAULT_RFN_KEY_ORDER);
 		left.onTextChange();
 
 		return true;

@@ -19,7 +19,7 @@ import androidx.annotation.Nullable;
 
 import io.github.sspanak.tt9.ime.TraditionalT9;
 import io.github.sspanak.tt9.languages.LanguageKind;
-import io.github.sspanak.tt9.preferences.settings.SettingsColors;
+
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.util.Text;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
@@ -29,11 +29,11 @@ public class SoftKey extends BaseClickableKey {
 
 	protected RelativeLayout overlay = null;
 
-	protected int textColor = SettingsColors.DEFAULT_KEY_TEXT_COLOR;
+	protected int textColor = SettingsStore.DEFAULT_KEY_TEXT_COLOR;
 	protected int cornerElementColor = textColor;
-	@NonNull protected ColorStateList backgroundColor = ColorStateList.valueOf(SettingsColors.DEFAULT_KEY_BACKGROUND_COLOR);
-	@NonNull protected ColorStateList borderColor = ColorStateList.valueOf(SettingsColors.DEFAULT_KEY_BORDER_COLOR);
-	@NonNull protected ColorStateList rippleColor = ColorStateList.valueOf(SettingsColors.DEFAULT_KEY_RIPPLE_COLOR);
+	@NonNull protected ColorStateList backgroundColor = ColorStateList.valueOf(SettingsStore.DEFAULT_KEY_BACKGROUND_COLOR);
+	@NonNull protected ColorStateList borderColor = ColorStateList.valueOf(SettingsStore.DEFAULT_KEY_BORDER_COLOR);
+	@NonNull protected ColorStateList rippleColor = ColorStateList.valueOf(SettingsStore.DEFAULT_KEY_RIPPLE_COLOR);
 
 
 	public SoftKey(Context context) { super(context); }

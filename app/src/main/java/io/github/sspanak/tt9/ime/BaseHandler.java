@@ -1,11 +1,14 @@
 package io.github.sspanak.tt9.ime;
 
+import android.inputmethodservice.InputMethodService;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import io.github.sspanak.tt9.hacks.AppHacks;
+import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.ime.modes.InputMode;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
@@ -13,12 +16,19 @@ import io.github.sspanak.tt9.ui.StatusIcon;
 import io.github.sspanak.tt9.ui.main.MainView;
 import io.github.sspanak.tt9.ui.tray.StatusBar;
 import io.github.sspanak.tt9.util.Logger;
+import io.github.sspanak.tt9.util.Ternary;
 import io.github.sspanak.tt9.util.Text;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 import io.github.sspanak.tt9.util.sys.SystemSettings;
 
-abstract class UiHandler extends AbstractHandler {
-	private final static String LOG_TAG = "UiHandler";
+/**
+ * Base IME handler: lifecycle hooks, UI scaffolding (main view, status bar, status icon),
+ * visibility forcing, and the abstract contract every handler in the chain must fulfil.
+ *
+ * Formed by merging the former AbstractHandler and UiHandler layers.
+ */
+abstract class BaseHandler extends InputMethodService {
+	private final static String LOG_TAG = "BaseHandler";
 
 	@NonNull protected final AppHacks appHacks = new AppHacks();
 	protected SettingsStore settings;
@@ -28,6 +38,39 @@ abstract class UiHandler extends AbstractHandler {
 	protected MainView mainView = null;
 	protected StatusBar statusBar = null;
 
+
+	/********** Abstract contract **********/
+
+	// hardware key handlers
+	abstract public Ternary onBack();
+	abstract public boolean onBackspace(int repeat);
+	abstract public boolean onHotkey(int keyCode, boolean repeat, boolean validateOnly);
+	abstract protected boolean onNumber(int key, boolean hold, int repeat);
+	abstract public boolean onOK();
+	abstract public boolean onText(String text, boolean validateOnly);
+
+	// lifecycle
+	abstract protected boolean onStart(EditorInfo inputField, boolean restarting);
+	abstract protected void onFinishTyping();
+	abstract protected void onStop();
+	abstract protected void setInputField(EditorInfo inputField);
+	abstract protected void waitForSpaceTrimKey();
+	abstract protected void stopWaitingForSpaceTrimKey();
+
+	// UI
+	abstract protected void createSuggestionBar();
+	abstract protected void resetStatus();
+
+	// informational
+	abstract protected InputMode determineInputMode();
+	abstract protected int determineInputModeId();
+	abstract protected SuggestionOps getSuggestionOps();
+	abstract protected boolean shouldBeOff();
+	abstract protected TraditionalT9 getFinalContext();
+	abstract public boolean isFnPanelVisible();
+
+
+	/********** UI lifecycle **********/
 
 	@Override
 	public boolean onEvaluateInputViewShown() {
@@ -48,7 +91,6 @@ abstract class UiHandler extends AbstractHandler {
 	}
 
 
-	@Override
 	protected void onInit() {
 		if (mainView == null) {
 			mainView = new MainView(getFinalContext());
@@ -135,7 +177,6 @@ abstract class UiHandler extends AbstractHandler {
 
 
 	/**
-	 * forceShowWindow
 	 * Some applications may hide our window and it remains invisible until the screen is touched or OK is pressed.
 	 * This is fine for touchscreen keyboards, but the hardware keyboard allows typing even when the window and the suggestions
 	 * are invisible. This function forces the InputMethodManager to show our window.
@@ -159,9 +200,6 @@ abstract class UiHandler extends AbstractHandler {
 	 * Shows the IME window using brutal force, ignoring IME flags and state, and any (invalid) app
 	 * requests for passthrough mode. Note that this should not be randomly used, because it will
 	 * cause the UI to appear in calculators, banking apps or others where it is not desired.
-	 * Reported problems (in chronological order):
-	 *	- <a href="https://github.com/sspanak/tt9/issues/920">Google search field in Firefox on Android 16</a>
-	 *	- <a href="https://github.com/sspanak/tt9/issues/963">Gmail reply/forward on Android 16</a>
 	 */
 	private void brutalForceShowWindow() {
 		if (!isShowInputRequested() || !isMainViewShown) {

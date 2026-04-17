@@ -261,7 +261,6 @@
 	<string name="pref_one_key_emoji_none">Nessuna emoji</string>
 	<string name="pref_hold_to_type">Tenere premuti i tasti numerici</string>
 	<string name="pref_color_scheme_device_dark">Scuro di sistema</string>
-	<string name="click_here_for_preview">Fai clic qui per l’anteprima</string>
 	<string name="pref_double_tap_resize">Doppio tocco per ridimensionare</string>
 	<string name="pref_layout_classic">Tastierino numerico (retrò)</string>
 	<string name="pref_arrows_up_down">Frecce su/giù</string>

@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 import androidx.annotation.NonNull;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.db.sqlite.ReadOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
 
 public class CustomWordsExporter extends AbstractExporter {
@@ -47,6 +47,6 @@ public class CustomWordsExporter extends AbstractExporter {
 			throw new Exception("Could not open database");
 		}
 
-		return new ReadOps().getWords(db, null, true).getBytes();
+		return new DbOps().getWords(db, null, true).getBytes();
 	}
 }

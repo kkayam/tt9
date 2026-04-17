@@ -11,9 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.sspanak.tt9.db.BaseSyncStore;
-import io.github.sspanak.tt9.db.sqlite.DeleteOps;
-import io.github.sspanak.tt9.db.sqlite.InsertOps;
-import io.github.sspanak.tt9.db.sqlite.ReadOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
 import io.github.sspanak.tt9.db.words.DictionaryLoader;
 import io.github.sspanak.tt9.languages.Language;
@@ -110,8 +108,8 @@ public class WordPairStore extends BaseSyncStore {
 
 			sqlite.beginTransaction();
 			try {
-				DeleteOps.deleteWordPairs(sqlite.getDb(), langId);
-				InsertOps.insertWordPairs(sqlite.getDb(), langId, languagePairs.values());
+				DbOps.deleteWordPairs(sqlite.getDb(), langId);
+				DbOps.insertWordPairs(sqlite.getDb(), langId, languagePairs.values());
 				sqlite.finishTransaction();
 			} catch (Exception e) {
 				sqlite.failTransaction();
@@ -155,7 +153,7 @@ public class WordPairStore extends BaseSyncStore {
 			}
 
 			int max = SettingsStore.WORD_PAIR_MAX - wordPairs.size();
-			ArrayList<WordPair> dbPairs = new ReadOps().getWordPairs(sqlite.getDb(), language, max);
+			ArrayList<WordPair> dbPairs = new DbOps().getWordPairs(sqlite.getDb(), language, max);
 			for (WordPair pair : dbPairs) {
 				wordPairs.put(pair, pair);
 			}
@@ -177,7 +175,7 @@ public class WordPairStore extends BaseSyncStore {
 		Timer.start(LOG_TAG);
 
 		for (Language language : languages) {
-			DeleteOps.deleteWordPairs(sqlite.getDb(), language.getId());
+			DbOps.deleteWordPairs(sqlite.getDb(), language.getId());
 		}
 
 		Logger.d(LOG_TAG, "Deleted " + languages.size() + " word pair groups. Time: " + Timer.stop(LOG_TAG) + " ms");

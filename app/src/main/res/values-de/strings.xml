@@ -260,7 +260,6 @@
 	<string name="pref_one_key_emoji_none">Keine Emojis</string>
 	<string name="pref_hold_to_type">Zahlentasten halten</string>
 	<string name="pref_color_scheme_device_dark">Systemdunkel</string>
-	<string name="click_here_for_preview">Hier klicken für Vorschau</string>
 	<string name="pref_double_tap_resize">Durch Doppeltippen die Größe ändern</string>
 	<string name="pref_layout_classic">Ziffernblock (Retro)</string>
 	<string name="pref_arrows_up_down">Pfeile oben/unten</string>

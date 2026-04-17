@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import io.github.sspanak.tt9.db.BaseSyncStore;
-import io.github.sspanak.tt9.db.sqlite.DeleteOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.languages.NaturalLanguage;
@@ -80,8 +80,8 @@ public class DictionaryDeleter extends BaseSyncStore {
 
 		try {
 			sqlite.beginTransaction();
-			DeleteOps.delete(sqlite.getDb(), language.getId());
-			DeleteOps.deleteWordPairs(sqlite.getDb(), language.getId());
+			DbOps.delete(sqlite.getDb(), language.getId());
+			DbOps.deleteWordPairs(sqlite.getDb(), language.getId());
 			sqlite.finishTransaction();
 		} catch (Exception e) {
 			sqlite.failTransaction();

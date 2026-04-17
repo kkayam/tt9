@@ -45,7 +45,6 @@ public class SuggestionsBar {
 	private int suggestionSeparatorColor;
 
 
-	private boolean containsOnlyGuesses = false;
 	private int lastScrollIndex = 0;
 	private int selectedIndex = 0;
 	@Nullable private List<String> suggestions = new ArrayList<>();
@@ -159,11 +158,6 @@ public class SuggestionsBar {
 	}
 
 
-	public boolean containsOnlyGuesses() {
-		return containsOnlyGuesses && suggestions != null && !suggestions.isEmpty();
-	}
-
-
 	public boolean containsStem() {
 		return !stem.isEmpty();
 	}
@@ -237,38 +231,11 @@ public class SuggestionsBar {
 	}
 
 
-	public void prependGuesses(@NonNull List<String> guesses) {
-		if (guesses.isEmpty()) {
-			return;
-		}
-
-		if (suggestions == null || suggestions.isEmpty()) {
-			setMany(guesses, 0, false);
-			containsOnlyGuesses = true;
-			return;
-		} else {
-			containsOnlyGuesses = false;
-		}
-
-		final ArrayList<String> combined = new ArrayList<>(guesses.size() + suggestions.size());
-		combined.addAll(guesses);
-
-		for (String old : suggestions) {
-			if (!guesses.contains(old)) {
-				combined.add(old);
-			}
-		}
-
-		setMany(combined, 0, false);
-	}
-
-
 	public void setMany(@Nullable List<String> newSuggestions, int initialSel, boolean containsGenerated) {
 		if ((suggestions == null || suggestions.isEmpty()) && (newSuggestions == null || newSuggestions.isEmpty())) {
 			return;
 		}
 
-		containsOnlyGuesses = false;
 		suggestions = newSuggestions;
 		selectedIndex = newSuggestions == null || newSuggestions.isEmpty() ? 0 : Math.max(initialSel, 0);
 
@@ -321,9 +288,7 @@ public class SuggestionsBar {
 
 		final ArrayList<String> copy = new ArrayList<>(suggestions);
 		copy.replaceAll(text -> new Text(language, text).toTextCase(textCase));
-		final boolean onlyGuesses = containsOnlyGuesses();
-		setMany(copy, selectedIndex, onlyGuesses);
-		containsOnlyGuesses = onlyGuesses;
+		setMany(copy, selectedIndex, false);
 	}
 
 

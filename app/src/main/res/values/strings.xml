@@ -4,7 +4,6 @@
 	<string name="app_name" translatable="false">Traditional T9</string>
 	<string name="app_name_short" translatable="false">TT9</string>
 	<string name="app_settings">TT9 Settings</string>
-	<string name="click_here_for_preview">Click here for preview</string>
 	<string name="completed">Completed</string>
 	<string name="delete">Delete</string>
 	<string name="english_only" translatable="false">English only</string>
@@ -41,7 +40,6 @@
 	<string name="pref_category_colors">Colors</string>
 	<string name="pref_category_custom_words">Added Words</string>
 	<string name="pref_category_geometry">Geometry</string>
-	<string name="pref_category_debug_options" translatable="false">Debug Options</string>
 	<string name="pref_category_delete_words">Delete Added Words</string>
 	<string name="pref_category_function_keys">Select Hotkeys</string>
 	<string name="pref_category_fn_key_order">Function Key Order</string>
@@ -55,7 +53,6 @@
 	<string name="pref_category_punctuation_order">Punctuation Order</string>
 	<string name="pref_category_setup">Initial Setup</string>
 	<string name="pref_category_typing">Typing</string>
-	<string name="pref_category_usage_stats" translatable="false">Usage Stats</string>
 
 	<string name="pref_abc_auto_accept">Automatic Letter Selection</string>
 	<string name="pref_abc_auto_accept_off">Off</string>

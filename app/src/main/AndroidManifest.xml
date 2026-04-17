@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:tools="http://schemas.android.com/tools"
-	android:versionCode="1535"
-	android:versionName="60.40"
+	android:versionCode="1536"
+	android:versionName="60.41"
 	xmlns:android="http://schemas.android.com/apk/res/android">
 
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/> <!-- allows displaying notifications on Android >= 13 -->
@@ -56,28 +56,6 @@
 		<activity
 			android:label="@string/pref_help"
 			android:name="io.github.sspanak.tt9.preferences.HelpActivity"
-			android:exported="true"
-			android:theme="@style/TTheme.Preferences">
-			<intent-filter>
-				<action android:name="android.intent.action.VIEW" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
-		<activity
-			android:label="Test Input"
-			android:name="io.github.sspanak.tt9.preferences.screens.debug.TestInputActivity"
-			android:exported="true"
-			android:theme="@style/TTheme.Preferences">
-			<intent-filter>
-				<action android:name="android.intent.action.VIEW" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
-		<activity
-			android:label="Log Messages"
-			android:name="io.github.sspanak.tt9.preferences.LogsActivity"
 			android:exported="true"
 			android:theme="@style/TTheme.Preferences">
 			<intent-filter>

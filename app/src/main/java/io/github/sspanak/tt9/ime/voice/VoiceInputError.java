@@ -1,12 +1,14 @@
 package io.github.sspanak.tt9.ime.voice;
 
+
+import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import android.content.Context;
 import android.speech.SpeechRecognizer;
 
 import androidx.annotation.NonNull;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.preferences.settings.SettingsStatic;
+
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 
 public class VoiceInputError {
@@ -119,7 +121,7 @@ public class VoiceInputError {
 			case ERROR_NOT_AVAILABLE -> "Voice input is not available.";
 			case ERROR_INVALID_LANGUAGE -> "Invalid language for voice input.";
 			case ERROR_CANNOT_BIND_TO_VOICE_SERVICE -> "Cannot bind to the current voice input service.";
-			case ERROR_START_FAILURE -> "Timed out waiting for SpeechRecognition service to start after " + SettingsStatic.VOICE_INPUT_START_FAILURE_TIMEOUT + " ms.";
+			case ERROR_START_FAILURE -> "Timed out waiting for SpeechRecognition service to start after " + SettingsStore.VOICE_INPUT_START_FAILURE_TIMEOUT + " ms.";
 			default -> null;
 		};
 	}

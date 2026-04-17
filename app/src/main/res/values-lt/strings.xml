@@ -267,7 +267,6 @@
 	<string name="pref_one_key_emoji_none">Be jaustukų</string>
 	<string name="pref_hold_to_type">Laikyti skaitmeninius klavišus</string>
 	<string name="pref_color_scheme_device_dark">Sisteminė tamsi</string>
-	<string name="click_here_for_preview">Spustelėkite čia, kad peržiūrėtumėte</string>
 	<string name="pref_double_tap_resize">Dvigubas bakstelėjimas dydžiui keisti</string>
 	<string name="pref_layout_classic">Skaičių klaviatūra (retro)</string>
 	<string name="pref_arrows_up_down">Rodyklės aukštyn/žemyn</string>

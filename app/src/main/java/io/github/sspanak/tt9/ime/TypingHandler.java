@@ -3,19 +3,24 @@ package io.github.sspanak.tt9.ime;
 import android.inputmethodservice.InputMethodService;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 
 import java.util.ArrayList;
 
+import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.db.DataStore;
 import io.github.sspanak.tt9.db.words.DictionaryLoader;
 import io.github.sspanak.tt9.hacks.InputType;
 import io.github.sspanak.tt9.ime.helpers.CursorOps;
 import io.github.sspanak.tt9.ime.helpers.InputConnectionAsync;
 import io.github.sspanak.tt9.ime.helpers.InputModeValidator;
+import io.github.sspanak.tt9.ime.helpers.Key;
 import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.ime.helpers.TextField;
 import io.github.sspanak.tt9.ime.helpers.TextSelection;
@@ -25,10 +30,21 @@ import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.languages.LanguageKind;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
+import io.github.sspanak.tt9.ui.UI;
 import io.github.sspanak.tt9.util.Text;
+import io.github.sspanak.tt9.util.Timer;
 import io.github.sspanak.tt9.util.chars.Characters;
+import io.github.sspanak.tt9.util.sys.Clipboard;
 
-public abstract class TypingHandler extends KeyPadHandler {
+public abstract class TypingHandler extends BaseHandler {
+	// key-event debouncing/tracking (formerly KeyPadHandler)
+	private final static String DEBOUNCE_TIMER = "debounce_";
+	private int ignoreNextKeyUp = 0;
+	private int lastKeyCode = 0;
+	private int keyRepeatCounter = 0;
+	private int lastNumKeyCode = 0;
+	private int numKeyRepeatCounter = 0;
+
 	// internal settings/data
 	@NonNull protected InputType inputType = new InputType(null, null);
 	@NonNull protected TextField textField = new TextField(null, null, null);
@@ -36,6 +52,7 @@ public abstract class TypingHandler extends KeyPadHandler {
 	@NonNull protected SuggestionOps suggestionOps = new SuggestionOps(null, null, null, null, null, null, null, null, null);
 
 	@Nullable private Handler shiftStateDebounceHandler;
+	@Nullable private Handler suggestionHandler;
 
 	// input
 	@NonNull protected ArrayList<Integer> allowedInputModes = new ArrayList<>();
@@ -44,10 +61,6 @@ public abstract class TypingHandler extends KeyPadHandler {
 	// language
 	protected ArrayList<Integer> mEnabledLanguages;
 	protected Language mLanguage;
-
-	// output: suggestions
-	abstract protected void onAcceptSuggestionsDelayed(String s);
-	abstract protected void getSuggestions(double loadingId, @Nullable String currentWord, @Nullable Runnable onComplete);
 
 	// predictive-to-manual fallback
 	protected boolean inPredictiveFallback = false;
@@ -111,6 +124,17 @@ public abstract class TypingHandler extends KeyPadHandler {
 	}
 
 
+	/**
+	 * Main initialization of the input method component.
+	 */
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		settings = new SettingsStore(getApplicationContext());
+		onInit();
+	}
+
+
 	@Override
 	protected void onInit() {
 		super.onInit();
@@ -119,6 +143,173 @@ public abstract class TypingHandler extends KeyPadHandler {
 
 	protected void cleanUp() {
 		InputConnectionAsync.destroy();
+	}
+
+
+	/********** Key event handling (formerly KeyPadHandler) **********/
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if (debounceKey(keyCode, event)) {
+			return true;
+		}
+
+		if (settings.getInputHandlingMode() == SettingsStore.INPUT_HANDLING_RETURN_FALSE) {
+			return false;
+		} else if (settings.getInputHandlingMode() == SettingsStore.INPUT_HANDLING_CALL_SUPER) {
+			return super.onKeyDown(keyCode, event);
+		}
+
+		if (shouldBeOff()) {
+			return false;
+		}
+
+		// "backspace" key must repeat its function when held down, so we handle it in a special way
+		if (Key.isBackspace(settings, keyCode)) {
+			if (onBackspace(event.getRepeatCount())) {
+				return Key.setHandled(KeyEvent.KEYCODE_DEL, true);
+			} else {
+				Key.setHandled(KeyEvent.KEYCODE_DEL, false);
+			}
+		}
+
+		// start tracking key hold
+		if (Key.isNumber(keyCode)) {
+			event.startTracking();
+			return true;
+		}
+		else if (getFinalContext().isHoldHotkey(-keyCode)) {
+			event.startTracking();
+		}
+
+		// on many devices there is a default back handler, so we must fall back to it when we don't
+		// perform any operation
+		if (Key.isBack(keyCode)) {
+			Key.setHandled(keyCode, onBack());
+			return Key.isHandledInSuper(keyCode) ? super.onKeyDown(keyCode, event) : Key.isHandled(keyCode);
+		} else {
+			Key.setHandled(KeyEvent.KEYCODE_BACK, false);
+		}
+
+		return
+			Key.setHandled(KeyEvent.KEYCODE_ENTER, Key.isOK(keyCode) && onOK())
+			|| handleHotkey(keyCode, true, false, true)
+			|| handleHotkey(keyCode, false, keyRepeatCounter + 1 > 0, true)
+			|| Key.isPoundOrStar(keyCode) && onText(String.valueOf((char) event.getUnicodeChar()), true)
+			|| super.onKeyDown(keyCode, event);
+	}
+
+
+	@Override
+	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+		if (settings.getInputHandlingMode() == SettingsStore.INPUT_HANDLING_RETURN_FALSE) {
+			return false;
+		} else if (settings.getInputHandlingMode() == SettingsStore.INPUT_HANDLING_CALL_SUPER) {
+			return super.onKeyLongPress(keyCode, event);
+		}
+
+		if (shouldBeOff()) {
+			return false;
+		}
+
+		if (event.getRepeatCount() > 1) {
+			return true;
+		}
+
+		ignoreNextKeyUp = keyCode;
+		if (Key.isNumber(keyCode)) {
+			numKeyRepeatCounter = 0;
+			lastNumKeyCode = 0;
+			return onNumber(Key.codeToNumber(settings, keyCode), true, 0);
+		} else {
+			keyRepeatCounter = 0;
+			lastKeyCode = 0;
+		}
+
+		if (handleHotkey(keyCode, true, false, false)) {
+			return true;
+		}
+
+		ignoreNextKeyUp = 0;
+		return false;
+	}
+
+
+	@Override
+	public boolean onKeyUp(int keyCode, KeyEvent event) {
+		if (debounceKey(keyCode, event)) {
+			return true;
+		}
+
+		if (settings.getInputHandlingMode() == SettingsStore.INPUT_HANDLING_RETURN_FALSE) {
+			return false;
+		} else if (settings.getInputHandlingMode() == SettingsStore.INPUT_HANDLING_CALL_SUPER) {
+			return super.onKeyUp(keyCode, event);
+		}
+
+		if (shouldBeOff()) {
+			return false;
+		}
+
+		if (keyCode == ignoreNextKeyUp) {
+			ignoreNextKeyUp = 0;
+			return true;
+		}
+
+		if (Key.isBackspace(settings, keyCode) && Key.isHandled(KeyEvent.KEYCODE_DEL)) {
+			return true;
+		}
+
+		keyRepeatCounter = (lastKeyCode == keyCode) ? keyRepeatCounter + 1 : 0;
+		lastKeyCode = keyCode;
+
+		if (Key.isNumber(keyCode)) {
+			numKeyRepeatCounter = (lastNumKeyCode == keyCode) ? numKeyRepeatCounter + 1 : 0;
+			lastNumKeyCode = keyCode;
+			return onNumber(Key.codeToNumber(settings, keyCode), false, numKeyRepeatCounter);
+		}
+
+		if (Key.isBack(keyCode)) {
+			return Key.isHandledInSuper(keyCode) ? super.onKeyUp(keyCode, event) : Key.isHandled(keyCode);
+		}
+
+		return
+			(Key.isOK(keyCode) && Key.isHandled(KeyEvent.KEYCODE_ENTER))
+			|| handleHotkey(keyCode, false, keyRepeatCounter > 0, false)
+			|| Key.isPoundOrStar(keyCode) && onText(String.valueOf((char) event.getUnicodeChar()), false)
+			|| super.onKeyUp(keyCode, event);
+	}
+
+
+	private boolean handleHotkey(int keyCode, boolean hold, boolean repeat, boolean validateOnly) {
+		return onHotkey(keyCode * (hold ? -1 : 1), repeat, validateOnly);
+	}
+
+
+	protected void resetKeyRepeat() {
+		numKeyRepeatCounter = 0;
+		keyRepeatCounter = 0;
+		lastNumKeyCode = 0;
+		lastKeyCode = 0;
+	}
+
+
+	private boolean debounceKey(int keyCode, KeyEvent event) {
+		if (settings.getKeyPadDebounceTime() <= 0 || event.isLongPress()) {
+			return false;
+		}
+
+		String keyTimer = DEBOUNCE_TIMER + keyCode;
+
+		if (Timer.get(keyTimer) > 0 && Timer.get(keyTimer) < settings.getKeyPadDebounceTime()) {
+			return true;
+		}
+
+		if (event.getAction() == KeyEvent.ACTION_UP) {
+			Timer.start(keyTimer);
+		}
+
+		return false;
 	}
 
 
@@ -182,6 +373,10 @@ public abstract class TypingHandler extends KeyPadHandler {
 		if (shiftStateDebounceHandler != null) {
 			shiftStateDebounceHandler.removeCallbacksAndMessages(null);
 			shiftStateDebounceHandler = null;
+		}
+		if (suggestionHandler != null) {
+			suggestionHandler.removeCallbacksAndMessages(null);
+			suggestionHandler = null;
 		}
 		suggestionOps.cancelDelayedAccept();
 		mInputMode = InputMode.getInstance(null, null, null, null, InputMode.MODE_PASSTHROUGH);
@@ -574,6 +769,193 @@ public abstract class TypingHandler extends KeyPadHandler {
 		mainView.renderDynamicKeys();
 		if (!mainView.isTextEditingPaletteShown() && !mainView.isCommandPaletteShown()) {
 			statusBar.setText(mInputMode);
+		}
+	}
+
+
+	/********** Suggestions pipeline (formerly SuggestionHandler) **********/
+
+	private Handler getAsyncSuggestionHandler() {
+		if (suggestionHandler == null) {
+			suggestionHandler = new Handler(Looper.getMainLooper());
+		}
+		return suggestionHandler;
+	}
+
+
+	private String[] onAcceptPreviousSuggestion() {
+		final int lastWordLength = InputModeKind.isABC(mInputMode) ? 1 : mInputMode.getSequenceLength() - 1;
+		String lastWord = suggestionOps.getCurrent(mLanguage, lastWordLength);
+		if (Characters.PLACEHOLDER.equals(lastWord)) {
+			lastWord = "";
+		}
+
+		suggestionOps.commitCurrent(false, true);
+		mInputMode.onAcceptSuggestion(lastWord, true);
+		final String[] surroundingText = autoCorrectSpace(
+			lastWord,
+			textField.getSurroundingStringForAutoAssistance(settings, mInputMode),
+			false,
+			mInputMode.getFirstKey()
+		);
+		mInputMode.determineNextWordTextCase(surroundingText[0], -1);
+
+		return surroundingText;
+	}
+
+
+	protected void onAcceptSuggestionsDelayed(String word) {
+		onAcceptSuggestionManually(word, -1);
+		forceShowWindow();
+	}
+
+
+	protected void onAcceptSuggestionManually(String word, int fromKey) {
+		mInputMode.onAcceptSuggestion(word);
+		if (Clipboard.contains(word)) {
+			Clipboard.copy(this, word);
+		}
+
+		if (!word.isEmpty()) {
+			String[] surroundingText = autoCorrectSpace(
+				word,
+				textField.getSurroundingStringForAutoAssistance(settings, mInputMode),
+				true,
+				fromKey
+			);
+
+			mInputMode.determineNextWordTextCase(surroundingText[0], -1);
+			updateShiftState(surroundingText[0], false, false);
+			resetKeyRepeat();
+		}
+
+		if (!Characters.getSpace(mLanguage).equals(word)) {
+			waitForSpaceTrimKey();
+		}
+
+		// In fallback mode: exit when a space is accepted
+		if (isInPredictiveFallback() && Characters.getSpace(mLanguage).equals(word)) {
+			exitPredictiveFallback();
+		}
+	}
+
+
+	@NonNull
+	@Override
+	public SuggestionOps getSuggestionOps() {
+		return suggestionOps;
+	}
+
+
+	/**
+	 * Ask the InputMode to load suggestions for the current state. No action is taken if the dictionary
+	 * is still loading. Note that onComplete is called even if the loading was skipped.
+	 */
+	protected void getSuggestions(double loadingId, @Nullable String currentWord, @Nullable Runnable onComplete) {
+		if (InputModeKind.isPredictive(mInputMode) && DictionaryLoader.getInstance(this).isRunning()) {
+			mInputMode.reset();
+			UI.toastShortSingle(this, R.string.dictionary_loading_please_wait);
+			if (onComplete != null) {
+				onComplete.run();
+			}
+		} else {
+			mInputMode
+				.setOnSuggestionsUpdated(() -> handleSuggestionsAsync(loadingId, onComplete))
+				.loadSuggestions(currentWord == null ? suggestionOps.getCurrent() : currentWord);
+		}
+	}
+
+
+	@WorkerThread
+	protected void handleSuggestionsAsync() {
+		handleSuggestionsAsync(0, null);
+	}
+
+
+	@WorkerThread
+	protected void handleSuggestionsAsync(double loadingId, @Nullable Runnable onComplete) {
+		final Handler handler = getAsyncSuggestionHandler();
+		handler.removeCallbacksAndMessages(null);
+		handler.post(() -> handleSuggestions(loadingId, onComplete));
+	}
+
+
+	@MainThread
+	protected void handleSuggestions(double loadingId, @Nullable Runnable onComplete) {
+		// Second pass, analyze the available suggestions and decide if combining them with the
+		// last key press makes up a compound word like: (it)'s, (I)'ve, l'(oiseau), or it is
+		// just the end of a sentence, like: "word." or "another?"
+		String[] surroundingText = null;
+		if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent())) {
+			surroundingText = onAcceptPreviousSuggestion();
+		}
+
+		final ArrayList<String> suggestions = mInputMode.getSuggestions();
+		suggestionOps.set(suggestions, mInputMode.getRecommendedSuggestionIdx(), mInputMode.containsGeneratedSuggestions());
+
+		// Predictive fallback: when no dictionary words match, commit everything except the
+		// last key press, switch to ABC mode, and replay the last key so it shows ABC letters.
+		if (!isInPredictiveFallback() && InputModeKind.isPredictive(mInputMode) && mInputMode.shouldFallbackToManual()) {
+			int lastKey = mInputMode.getLastKey();
+			int seqLen = mInputMode.getSequenceLength();
+
+			String wordBeforeLastKey = seqLen > 1
+				? suggestionOps.getCurrent(mLanguage, seqLen - 1)
+				: "";
+			if (!wordBeforeLastKey.isEmpty()) {
+				appHacks.setComposingText(wordBeforeLastKey);
+			}
+			textField.finishComposingText();
+			mInputMode.onAcceptSuggestion(wordBeforeLastKey);
+			suggestionOps.set(null);
+
+			enterPredictiveFallback(wordBeforeLastKey.length());
+			if (lastKey >= 0) {
+				String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
+				mInputMode.onNumber(lastKey, false, 0, surroundingChars);
+				getSuggestions(0, null, null);
+			}
+			return;
+		}
+
+		// either accept the first one automatically (when switching from punctuation to text
+		// or vice versa), or schedule auto-accept in N seconds (in ABC mode)
+		if (suggestionOps.scheduleDelayedAccept(mInputMode.getAutoAcceptTimeout())) {
+			if (onComplete != null) {
+				onComplete.run();
+			}
+			return;
+		}
+
+		// We have not accepted anything yet, which means the user is composing a word.
+		// put the first suggestion in the text field, but cut it off to the length of the sequence
+		// (the count of key presses), for a more intuitive experience.
+		String trimmedWord;
+
+		if (InputModeKind.isRecomposing(mInputMode)) {
+			trimmedWord = mInputMode.getWordStem() + suggestionOps.getCurrent();
+			appHacks.setComposingTextPartsWithHighlightedJoining(trimmedWord, mInputMode.getRecomposingSuffix());
+		} else {
+			trimmedWord = suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength());
+			appHacks.setComposingTextWithHighlightedStem(trimmedWord, mInputMode.getWordStem(), mInputMode.isStemFilterFuzzy());
+		}
+
+		onAfterSuggestionsHandled(onComplete, surroundingText, trimmedWord, suggestions.isEmpty());
+	}
+
+
+	private void onAfterSuggestionsHandled(@Nullable Runnable callback, @Nullable String[] surroundingText, @Nullable String trimmedWord, boolean noSuggestions) {
+		final String shiftStateContext = surroundingText != null ? surroundingText[0] + trimmedWord : trimmedWord;
+		if (noSuggestions) {
+			updateShiftStateDebounced(shiftStateContext, true, false);
+		} else {
+			updateShiftStateDebounced(shiftStateContext, false, true);
+		}
+
+		forceShowWindow();
+
+		if (callback != null) {
+			callback.run();
 		}
 	}
 }

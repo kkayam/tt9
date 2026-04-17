@@ -14,7 +14,7 @@ import java.util.Map;
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.ime.TraditionalT9;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
-import io.github.sspanak.tt9.preferences.settings.SettingsVirtualNumpad;
+
 import io.github.sspanak.tt9.ui.main.keys.SoftKey;
 import io.github.sspanak.tt9.ui.main.keys.SoftKeyArrow;
 import io.github.sspanak.tt9.ui.main.keys.SoftKeyText;
@@ -178,7 +178,7 @@ class MainLayoutNumpad extends MainLayoutClassic {
 		}
 
 		Map<Integer, View> keyWrappers = new HashMap<>();
-		for (Map.Entry<Character, Integer> entry : SettingsVirtualNumpad.KEY_ORDER_MAP.entrySet()) {
+		for (Map.Entry<Character, Integer> entry : SettingsStore.KEY_ORDER_MAP.entrySet()) {
 			keyWrappers.put(entry.getValue(), view.findViewById(entry.getValue()));
 		}
 
@@ -217,7 +217,7 @@ class MainLayoutNumpad extends MainLayoutClassic {
 		Integer viewId = null;
 
 		for (char keyId : order.toCharArray()) {
-			viewId = SettingsVirtualNumpad.KEY_ORDER_MAP.get(keyId);
+			viewId = SettingsStore.KEY_ORDER_MAP.get(keyId);
 			if (viewId == null) {
 				continue;
 			}

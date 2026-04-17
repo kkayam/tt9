@@ -71,18 +71,8 @@ public class SuggestionOps {
 	}
 
 
-	public boolean containsOnlyGuesses() {
-		return suggestionBar != null && suggestionBar.containsOnlyGuesses();
-	}
-
-
 	public boolean containsStem() {
 		return suggestionBar != null && suggestionBar.containsStem();
-	}
-
-
-	public boolean containsNoOrdinaryWords() {
-		return isEmpty() || containsOnlyGuesses();
 	}
 
 
@@ -100,14 +90,6 @@ public class SuggestionOps {
 			appHacks.setComposingText("");
 		}
 		textField.finishComposingText();
-	}
-
-
-	public void addGuesses(@NonNull ArrayList<String> guesses) {
-		setVisibility(settings, isEmpty() && guesses.isEmpty(), true);
-		if (suggestionBar != null) {
-			suggestionBar.prependGuesses(guesses);
-		}
 	}
 
 

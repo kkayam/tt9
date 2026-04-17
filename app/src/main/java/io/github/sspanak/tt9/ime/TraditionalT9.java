@@ -25,7 +25,7 @@ import io.github.sspanak.tt9.util.SupremeExecutor;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 import io.github.sspanak.tt9.util.sys.SystemSettings;
 
-public class TraditionalT9 extends PremiumHandler {
+public class TraditionalT9 extends CommandHandler {
 	private static final String LOG_TAG = "MAIN";
 
 	private Future<?> asyncInitThread;

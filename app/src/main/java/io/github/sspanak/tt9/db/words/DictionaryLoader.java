@@ -18,8 +18,7 @@ import io.github.sspanak.tt9.db.entities.WordBatch;
 import io.github.sspanak.tt9.db.entities.WordFile;
 import io.github.sspanak.tt9.db.exceptions.DictionaryImportAbortedException;
 import io.github.sspanak.tt9.db.exceptions.DictionaryImportException;
-import io.github.sspanak.tt9.db.sqlite.DeleteOps;
-import io.github.sspanak.tt9.db.sqlite.InsertOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.SQLiteOpener;
 import io.github.sspanak.tt9.db.sqlite.Tables;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
@@ -40,7 +39,7 @@ public class DictionaryLoader {
 
 	private final AssetManager assets;
 	private final SQLiteOpener sqlite;
-	private final InsertOps insertOps = new InsertOps();
+	private final DbOps insertOps = new DbOps();
 
 	@NonNull private final DictionaryLoadingBar loadingBar;
 	private Thread loadThread;
@@ -174,7 +173,7 @@ public class DictionaryLoader {
 			sendProgressMessage(language, ++progress);
 			logLoadingStep("Indexes dropped", language, Timer.restart());
 
-			DeleteOps.delete(sqlite.getDb(), language.getId());
+			DbOps.delete(sqlite.getDb(), language.getId());
 			sendProgressMessage(language, ++progress);
 			logLoadingStep("Storage cleared", language, Timer.restart());
 
@@ -194,16 +193,15 @@ public class DictionaryLoader {
 			sendProgressMessage(language, progress = 98);
 			logLoadingStep("Indexes restored", language, Timer.restart());
 
-			int purgedWords = DeleteOps.purgeCustomWords(sqlite.getDb(), language.getId());
+			int purgedWords = DbOps.purgeCustomWords(sqlite.getDb(), language.getId());
 			sendProgressMessage(language, ++progress);
 			logLoadingStep("Removed " + purgedWords + " custom words, which are already in the dictionary", language, Timer.restart());
 
-			InsertOps.restoreCustomWords(sqlite.getDb(), language);
+			DbOps.restoreCustomWords(sqlite.getDb(), language);
 			sendProgressMessage(language, ++progress);
 			logLoadingStep("Custom words restored", language, Timer.restart());
 
 			sqlite.finishTransaction();
-			SlowQueryStats.clear();
 		} catch (DictionaryImportAbortedException e) {
 			sqlite.failTransaction();
 			stop();
@@ -299,7 +297,7 @@ public class DictionaryLoader {
 		}
 
 		saveWordBatch(batch);
-		InsertOps.replaceLanguageMeta(sqlite.getDb(), language.getId(), wordFile.getHash());
+		DbOps.replaceLanguageMeta(sqlite.getDb(), language.getId(), wordFile.getHash());
 	}
 
 

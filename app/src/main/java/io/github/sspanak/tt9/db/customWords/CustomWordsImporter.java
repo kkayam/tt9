@@ -13,8 +13,7 @@ import java.util.function.Consumer;
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.db.entities.CustomWord;
 import io.github.sspanak.tt9.db.entities.CustomWordFile;
-import io.github.sspanak.tt9.db.sqlite.InsertOps;
-import io.github.sspanak.tt9.db.sqlite.ReadOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.SQLiteOpener;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
@@ -135,7 +134,7 @@ public class CustomWordsImporter extends AbstractFileProcessor {
 
 
 	private boolean insertWords() {
-		ReadOps readOps = new ReadOps();
+		DbOps readOps = new DbOps();
 		int ignoredWords = 0;
 		int lineCount = 1;
 
@@ -157,7 +156,7 @@ public class CustomWordsImporter extends AbstractFileProcessor {
 				if (customWord.language.isTranscribed() || readOps.exists(sqlite.getDb(), customWord.language, customWord.word, customWord.sequence)) {
 					ignoredWords++;
 				} else {
-					InsertOps.insertCustomWord(sqlite.getDb(), customWord.language, customWord.sequence, customWord.word);
+					DbOps.insertCustomWord(sqlite.getDb(), customWord.language, customWord.sequence, customWord.word);
 				}
 
 				if (file.getSize() > 20) {
@@ -200,7 +199,7 @@ public class CustomWordsImporter extends AbstractFileProcessor {
 			return false;
 		}
 
-		if ((new ReadOps()).countCustomWords(sqlite.getDb()) > maxWords) {
+		if ((new DbOps()).countCustomWords(sqlite.getDb()) > maxWords) {
 			sendFailure(resources.getString(R.string.dictionary_import_error_too_many_words));
 			return false;
 		}

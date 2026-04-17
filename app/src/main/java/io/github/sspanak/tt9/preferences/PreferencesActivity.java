@@ -19,9 +19,7 @@ import io.github.sspanak.tt9.db.words.LegacyDb;
 import io.github.sspanak.tt9.ime.helpers.InputModeValidator;
 import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.preferences.screens.BaseScreenFragment;
-import io.github.sspanak.tt9.preferences.screens.UsageStatsScreen;
 import io.github.sspanak.tt9.preferences.screens.appearance.AppearanceScreen;
-import io.github.sspanak.tt9.preferences.screens.debug.DebugScreen;
 import io.github.sspanak.tt9.preferences.screens.deleteWords.DeleteWordsScreen;
 import io.github.sspanak.tt9.preferences.screens.fnKeyOrder.FnKeyOrderScreen;
 import io.github.sspanak.tt9.preferences.screens.hotkeys.HotkeysScreen;
@@ -149,7 +147,6 @@ public class PreferencesActivity extends PremiumPreferencesActivity implements P
 
 		return switch (name) {
 			case AppearanceScreen.NAME -> new AppearanceScreen(this);
-			case DebugScreen.NAME -> new DebugScreen(this);
 			case DeleteWordsScreen.NAME -> new DeleteWordsScreen(this);
 			case FnKeyOrderScreen.NAME -> new FnKeyOrderScreen(this);
 			case HotkeysScreen.NAME -> new HotkeysScreen(this);
@@ -160,7 +157,6 @@ public class PreferencesActivity extends PremiumPreferencesActivity implements P
 			case ModeAbcScreen.NAME -> new ModeAbcScreen(this);
 			case PunctuationScreen.NAME -> new PunctuationScreen(this);
 			case SetupScreen.NAME -> new SetupScreen(this);
-			case UsageStatsScreen.NAME -> new UsageStatsScreen(this);
 			default -> new MainSettingsScreen(this);
 		};
 	}

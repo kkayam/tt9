@@ -1,5 +1,7 @@
 package io.github.sspanak.tt9.ime.voice;
 
+
+import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,7 +15,6 @@ import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 
-import io.github.sspanak.tt9.preferences.settings.SettingsStatic;
 
 class VoiceListener implements RecognitionListener {
 	private boolean listening = false;
@@ -49,7 +50,7 @@ class VoiceListener implements RecognitionListener {
 		startSuccess = false;
 
 		startFailureHandler.removeCallbacksAndMessages(null);
-		startFailureHandler.postDelayed(this::onStartFailure, SettingsStatic.VOICE_INPUT_START_FAILURE_TIMEOUT);
+		startFailureHandler.postDelayed(this::onStartFailure, SettingsStore.VOICE_INPUT_START_FAILURE_TIMEOUT);
 	}
 
 	@Override

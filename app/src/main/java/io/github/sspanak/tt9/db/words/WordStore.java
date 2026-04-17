@@ -14,10 +14,7 @@ import io.github.sspanak.tt9.db.entities.CustomWord;
 import io.github.sspanak.tt9.db.entities.NormalizationList;
 import io.github.sspanak.tt9.db.entities.Word;
 import io.github.sspanak.tt9.db.entities.WordList;
-import io.github.sspanak.tt9.db.sqlite.DeleteOps;
-import io.github.sspanak.tt9.db.sqlite.InsertOps;
-import io.github.sspanak.tt9.db.sqlite.ReadOps;
-import io.github.sspanak.tt9.db.sqlite.UpdateOps;
+import io.github.sspanak.tt9.db.sqlite.DbOps;
 import io.github.sspanak.tt9.db.sqlite.WordDbOpener;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.languages.NullLanguage;
@@ -29,12 +26,12 @@ import io.github.sspanak.tt9.util.Timer;
 
 public class WordStore extends BaseSyncStore {
 	private final String LOG_TAG = "sqlite.WordStore";
-	private final ReadOps readOps;
+	private final DbOps readOps;
 
 
 	public WordStore(@NonNull Context context) {
 		super(context);
-		readOps = new ReadOps();
+		readOps = new DbOps();
 	}
 
 
@@ -113,9 +110,6 @@ public class WordStore extends BaseSyncStore {
 		long wordsTime = Timer.stop("get_words");
 
 		printLoadingSummary(sequence, words, positionsTime, wordsTime);
-		if (!cancel.isCanceled()) { // do not cache empty results from aborted queries
-			SlowQueryStats.add(language, sequence, wordFilter, minWords, (int) (positionsTime + wordsTime), positions);
-		}
 
 		return words;
 	}
@@ -143,7 +137,7 @@ public class WordStore extends BaseSyncStore {
 
 		try {
 			sqlite.beginTransaction();
-			DeleteOps.deleteCustomWord(sqlite.getDb(), language.getId(), word);
+			DbOps.deleteCustomWord(sqlite.getDb(), language.getId(), word);
 			sqlite.finishTransaction();
 		} catch (Exception e) {
 			sqlite.failTransaction();
@@ -172,7 +166,7 @@ public class WordStore extends BaseSyncStore {
 				return new AddWordResult(AddWordResult.CODE_WORD_EXISTS, word);
 			}
 
-			if (InsertOps.insertCustomWord(sqlite.getDb(), language, sequence, word)) {
+			if (DbOps.insertCustomWord(sqlite.getDb(), language, sequence, word)) {
 				makeTopWord(language, word, sequence);
 			} else {
 				throw new Exception("SQLite INSERT failure.");
@@ -217,7 +211,7 @@ public class WordStore extends BaseSyncStore {
 
 			int newTopFrequency = topWord.frequency + 1;
 			Text wordFilter = new Text(language, word.length() == 1 ? word : null);
-			if (!UpdateOps.changeFrequency(sqlite.getDb(), language, wordFilter, wordPosition, newTopFrequency)) {
+			if (!DbOps.changeFrequency(sqlite.getDb(), language, wordFilter, wordPosition, newTopFrequency)) {
 				throw new Exception("No such word");
 			}
 
@@ -242,7 +236,7 @@ public class WordStore extends BaseSyncStore {
 		try {
 			sqlite.beginTransaction();
 			NormalizationList normalizationList = readOps.getNextInNormalizationQueue(sqlite.getDb());
-			UpdateOps.normalize(sqlite.getDb(), normalizationList);
+			DbOps.normalize(sqlite.getDb(), normalizationList);
 			sqlite.finishTransaction();
 
 			String message = normalizationList.langId > 0 ? "Normalized language: " + normalizationList.langId + ", positions: " + normalizationList.positions : "No languages to normalize";
@@ -256,7 +250,7 @@ public class WordStore extends BaseSyncStore {
 
 	public void scheduleNormalization(Language language, String positions) {
 		if (language != null && !(language instanceof NullLanguage) && positions != null && !positions.isEmpty() && checkOrNotify()) {
-			UpdateOps.scheduleNormalization(sqlite.getDb(), language, positions);
+			DbOps.scheduleNormalization(sqlite.getDb(), language, positions);
 		}
 	}
 
