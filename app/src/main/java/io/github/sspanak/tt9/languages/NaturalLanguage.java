@@ -72,6 +72,16 @@ public class NaturalLanguage extends TranscribedLanguage {
 				);
 		}
 
+		// Key 0 is reserved for Space only — no cycling characters. Move whatever the language
+		// placed on key 0 (historically the SPECIAL set: @ _ # % [ ] { } § | ^ < > \ / = * +)
+		// onto key 1, so punctuation + special chars share the same key.
+		if (layout.size() > 0 && !layout.get(0).isEmpty()) {
+			if (layout.size() > 1) {
+				layout.get(1).addAll(layout.get(0));
+			}
+			layout.set(0, new ArrayList<>());
+		}
+
 		generateCharacterKeyMap();
 	}
 

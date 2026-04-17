@@ -447,6 +447,17 @@ public abstract class TypingHandler extends BaseHandler {
 		suggestionOps.cancelDelayedAccept();
 
 		hold = hold && settings.getHoldToType();
+
+		// Key 0 is pure Space in all non-numeric modes. No character cycling, no suggestions —
+		// onText commits any in-progress word, types the language-appropriate space character,
+		// and resets the mode, so the suggestion bar falls back to showing the status text.
+		if (key == 0 && !hold && !InputModeKind.isNumeric(mInputMode)) {
+			onText(Characters.getSpace(mLanguage), false);
+			resetStatus();
+			mainView.renderDynamicKeys();
+			return true;
+		}
+
 		String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
 		String lastWord = null;
 
