@@ -345,7 +345,13 @@ abstract public class CommandHandler extends TextEditingHandler {
 			textField.setText(emoji);
 			Emoji.recordEmojiUsage(getApplicationContext(), emoji);
 		}
-		// Stay in emoji mode - re-show the same category, preserving selection position
+		// Stay in emoji mode - re-show the same category, preserving selection position.
+		// For the "Recently Used" tab (index 0), keep the list stable during this session
+		// so the user doesn't see emojis shuffle underneath them. The updated order will
+		// appear next time the tab is opened.
+		if (emojiCategoryIndex == 0) {
+			return;
+		}
 		ArrayList<String> emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
 		suggestionOps.set(emojis, currentIndex, false);
 	}
