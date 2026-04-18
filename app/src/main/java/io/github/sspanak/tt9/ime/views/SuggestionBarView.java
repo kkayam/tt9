@@ -32,7 +32,8 @@ public class SuggestionBarView extends View {
 	private static final float SELECTED_PAD_H_DP = 12f;
 	private static final float SELECTED_PAD_V_DP = 4f;
 	private static final float SELECTED_RADIUS_DP = 6f;
-	private static final float TEXT_SIZE_DP = 18f;
+	private static final float TEXT_SIZE_DP = 15f;
+	private static final float SELECTED_TEXT_SIZE_DP = 21f;
 
 	@Nullable private SuggestionOps suggestionOps;
 
@@ -56,12 +57,13 @@ public class SuggestionBarView extends View {
 		selectedRadiusPx = SELECTED_RADIUS_DP * density;
 
 		final float textSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
+		final float selectedTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, SELECTED_TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
 
 		textPaint.setTextSize(textSizePx);
 		textPaint.setTextAlign(Paint.Align.CENTER);
 		textPaint.setColor(getColor(context, R.color.keyboard_text, Color.DKGRAY));
 
-		selectedTextPaint.setTextSize(textSizePx);
+		selectedTextPaint.setTextSize(selectedTextSizePx);
 		selectedTextPaint.setTextAlign(Paint.Align.CENTER);
 		selectedTextPaint.setColor(getColor(context, R.color.suggestion_selected_text, Color.BLACK));
 
