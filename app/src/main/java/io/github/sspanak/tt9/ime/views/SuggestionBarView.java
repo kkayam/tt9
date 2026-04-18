@@ -4,14 +4,19 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
+import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +42,8 @@ public class SuggestionBarView extends View {
 	private static final float TEXT_SIZE_DP = 15f;
 	private static final float SELECTED_TEXT_SIZE_DP = 21f;
 	private static final float MODE_TEXT_SIZE_DP = 16f;
+	private static final float MIC_ICON_SIZE_DP = 24f;
+	private static final float MIC_ICON_MARGIN_DP = 12f;
 	private static final long FLASH_DURATION_MS = 2000L;
 
 	@Nullable private SuggestionOps suggestionOps;
@@ -55,6 +62,14 @@ public class SuggestionBarView extends View {
 	private final float selectedPadHPx;
 	private final float selectedPadVPx;
 	private final float selectedRadiusPx;
+	private final float micIconSizePx;
+	private final float micIconMarginPx;
+
+	@Nullable private Drawable micIcon;
+	@Nullable private Runnable onMicClick;
+	@Nullable private java.util.function.BooleanSupplier isMicVisible;
+	private final RectF micHitRect = new RectF();
+	private boolean micPressed = false;
 
 
 	public SuggestionBarView(Context context) {
@@ -65,6 +80,14 @@ public class SuggestionBarView extends View {
 		selectedPadHPx = SELECTED_PAD_H_DP * density;
 		selectedPadVPx = SELECTED_PAD_V_DP * density;
 		selectedRadiusPx = SELECTED_RADIUS_DP * density;
+		micIconSizePx = MIC_ICON_SIZE_DP * density;
+		micIconMarginPx = MIC_ICON_MARGIN_DP * density;
+
+		micIcon = ContextCompat.getDrawable(context, R.drawable.ic_fn_voice);
+		if (micIcon != null) {
+			micIcon = micIcon.mutate();
+			micIcon.setColorFilter(new PorterDuffColorFilter(getColor(context, R.color.keyboard_text, Color.DKGRAY), PorterDuff.Mode.SRC_IN));
+		}
 
 		final float textSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
 		final float selectedTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, SELECTED_TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
@@ -92,6 +115,13 @@ public class SuggestionBarView extends View {
 	public void attach(@NonNull SuggestionOps ops) {
 		this.suggestionOps = ops;
 		ops.setChangeListener(this::refresh);
+	}
+
+
+	public void setMicButton(@Nullable java.util.function.BooleanSupplier isVisible, @Nullable Runnable onClick) {
+		this.isMicVisible = isVisible;
+		this.onMicClick = onClick;
+		refresh();
 	}
 
 
@@ -159,8 +189,11 @@ public class SuggestionBarView extends View {
 
 		if (n == 0 || flashing) {
 			drawModeLabel(canvas);
+			drawMicButton(canvas);
 			return;
 		}
+
+		micHitRect.setEmpty();
 
 		final int selectedIdx = clamp(suggestionOps.getCurrentIndex(), 0, n - 1);
 		final String selected = items.get(selectedIdx);
@@ -215,6 +248,83 @@ public class SuggestionBarView extends View {
 			canvas.drawText(word, cx, baselineY, textPaint);
 			leftCursor -= w + gapPx;
 		}
+	}
+
+
+	private boolean isMicButtonShown() {
+		return micIcon != null && onMicClick != null && (isMicVisible == null || isMicVisible.getAsBoolean());
+	}
+
+
+	private void drawMicButton(Canvas canvas) {
+		if (!isMicButtonShown()) {
+			micHitRect.setEmpty();
+			return;
+		}
+
+		final float cy = getHeight() / 2f;
+		final float right = getWidth() - micIconMarginPx;
+		final float left = right - micIconSizePx;
+		final float top = cy - micIconSizePx / 2f;
+		final float bottom = cy + micIconSizePx / 2f;
+
+		micIcon.setBounds((int) left, (int) top, (int) right, (int) bottom);
+		micIcon.setAlpha(micPressed ? 140 : 255);
+		micIcon.draw(canvas);
+
+		// Enlarge touch area around the drawn icon.
+		micHitRect.set(left - micIconMarginPx, 0, getWidth(), getHeight());
+	}
+
+
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		if (!isMicButtonShown() || micHitRect.isEmpty()) {
+			return super.onTouchEvent(event);
+		}
+
+		final float x = event.getX();
+		final float y = event.getY();
+		final boolean inside = micHitRect.contains(x, y);
+
+		switch (event.getActionMasked()) {
+			case MotionEvent.ACTION_DOWN:
+				if (!inside) return super.onTouchEvent(event);
+				micPressed = true;
+				invalidate();
+				return true;
+			case MotionEvent.ACTION_MOVE:
+				if (micPressed && !inside) {
+					micPressed = false;
+					invalidate();
+				}
+				return micPressed;
+			case MotionEvent.ACTION_UP:
+				if (micPressed) {
+					micPressed = false;
+					invalidate();
+					if (inside && onMicClick != null) {
+						performClick();
+						onMicClick.run();
+					}
+					return true;
+				}
+				break;
+			case MotionEvent.ACTION_CANCEL:
+				if (micPressed) {
+					micPressed = false;
+					invalidate();
+					return true;
+				}
+				break;
+		}
+		return super.onTouchEvent(event);
+	}
+
+
+	@Override
+	public boolean performClick() {
+		return super.performClick();
 	}
 
 

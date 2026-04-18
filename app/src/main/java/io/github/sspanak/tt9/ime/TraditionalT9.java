@@ -53,6 +53,7 @@ public class TraditionalT9 extends CommandHandler {
 		}
 		suggestionBar = new SuggestionBarView(this);
 		suggestionBar.attach(suggestionOps);
+		suggestionBar.setMicButton(() -> !isVoiceInputMissing(), this::toggleVoiceInput);
 		pushModeInfoToBar();
 		return suggestionBar;
 	}
