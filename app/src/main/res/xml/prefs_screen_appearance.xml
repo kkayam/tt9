@@ -4,12 +4,6 @@
 		<io.github.sspanak.tt9.preferences.screens.appearance.DropDownColorScheme />
 	</PreferenceCategory>
 
-	<PreferenceCategory app:title="@string/pref_category_layout">
-		<io.github.sspanak.tt9.preferences.screens.appearance.DropDownLayoutType app:title="@string/pref_layout" />
-		<io.github.sspanak.tt9.preferences.screens.appearance.SwitchDragResize />
-		<io.github.sspanak.tt9.preferences.screens.appearance.SwitchDoubleTapResize />
-	</PreferenceCategory>
-
 	<PreferenceCategory app:key="category_keyboard_geometry" app:title="@string/pref_category_geometry">
 		<io.github.sspanak.tt9.preferences.screens.appearance.DropDownNumpadShape app:title="@string/pref_numpad_shape" />
 		<io.github.sspanak.tt9.preferences.screens.appearance.DropDownAlignment app:title="@string/pref_numpad_alignment" />

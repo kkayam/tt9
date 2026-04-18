@@ -31,6 +31,7 @@ import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.languages.LanguageKind;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.UI;
+import io.github.sspanak.tt9.ui.tray.SuggestionBar;
 import io.github.sspanak.tt9.util.Text;
 import io.github.sspanak.tt9.util.Timer;
 import io.github.sspanak.tt9.util.chars.Characters;
@@ -72,6 +73,9 @@ public abstract class TypingHandler extends BaseHandler {
 
 	protected void createSuggestionBar() {
 		suggestionOps = new SuggestionOps(this, settings, appHacks, inputType, textField, this::onAcceptSuggestionsDelayed);
+		if (mainView != null && mainView.getView() != null) {
+			suggestionOps.setBar(new SuggestionBar(mainView.getView(), settings));
+		}
 	}
 
 

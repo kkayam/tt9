@@ -16,6 +16,7 @@ import io.github.sspanak.tt9.hacks.AppHacks;
 import io.github.sspanak.tt9.hacks.InputType;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
+import io.github.sspanak.tt9.ui.tray.SuggestionBar;
 import io.github.sspanak.tt9.util.Text;
 import io.github.sspanak.tt9.util.TextTools;
 import io.github.sspanak.tt9.util.chars.Characters;
@@ -53,6 +54,8 @@ public class SuggestionOps {
 	@Nullable private List<String> suggestions = new ArrayList<>();
 	@NonNull private final List<String> visibleSuggestions = new ArrayList<>();
 
+	@Nullable private SuggestionBar bar;
+
 
 	public SuggestionOps(@Nullable InputMethodService ims, @Nullable SettingsStore settings, @Nullable AppHacks appHacks, @Nullable InputType inputType, @Nullable TextField textField, @Nullable Consumer<String> onDelayedAccept) {
 		delayedAcceptHandler = new Handler(Looper.getMainLooper());
@@ -67,6 +70,12 @@ public class SuggestionOps {
 
 	public void setLanguage(@Nullable Language newLanguage) {
 		// Reserved for future UI-facing bar to react to language direction changes.
+	}
+
+
+	public void setBar(@NonNull SuggestionBar newBar) {
+		this.bar = newBar;
+		newBar.onSuggestionsSet(visibleSuggestions, selectedIndex);
 	}
 
 
@@ -336,6 +345,10 @@ public class SuggestionOps {
 		addMany(newSuggestions, onlySpecialChars ? Integer.MAX_VALUE : SettingsStore.SUGGESTIONS_MAX);
 
 		selectedIndex = Math.max(Math.min(selectedIndex, visibleSuggestions.size() - 1), 0);
+
+		if (bar != null) {
+			bar.onSuggestionsSet(visibleSuggestions, selectedIndex);
+		}
 	}
 
 
@@ -416,7 +429,15 @@ public class SuggestionOps {
 		}
 
 		calculateScrollIndex(increment);
-		appendHiddenSuggestionsIfNeeded(increment < 0);
+		boolean listChanged = appendHiddenSuggestionsIfNeeded(increment < 0);
+
+		if (bar != null) {
+			if (listChanged) {
+				bar.onSuggestionsSet(visibleSuggestions, selectedIndex);
+			} else {
+				bar.onScrolled(selectedIndex);
+			}
+		}
 	}
 
 

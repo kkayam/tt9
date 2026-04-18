@@ -10,19 +10,26 @@ import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.ime.TraditionalT9;
 import io.github.sspanak.tt9.ui.main.keys.SoftKey;
 import io.github.sspanak.tt9.ui.main.keys.SoftKeyCommandPalette;
+import io.github.sspanak.tt9.util.sys.DeviceInfo;
 
-class MainLayoutSmall extends MainLayoutTray {
+class MainLayoutSmall extends MainLayoutExtraPanel {
+	protected int height;
+	protected boolean isCommandPaletteShown = false;
+	protected boolean isTextEditingPaletteShown = false;
+
+
 	MainLayoutSmall(TraditionalT9 tt9) {
-		super(tt9);
+		super(tt9, R.layout.main_small);
 	}
+
 
 	@Override
 	int getHeight(boolean forceRecalculate) {
-		height = super.getHeight(forceRecalculate);
-
 		if (height <= 0 || forceRecalculate) {
+			Resources resources = tt9.getResources();
+			height = getPanelHeight(resources);
 			if (tt9.getSettings().getMessengerReplyExtraPadding()) {
-				height += tt9.getResources().getDimensionPixelSize(R.dimen.main_small_main_key_wrapper_extra_height_for_messenger);
+				height += resources.getDimensionPixelSize(R.dimen.main_small_main_key_wrapper_extra_height_for_messenger);
 			}
 		}
 
@@ -30,17 +37,15 @@ class MainLayoutSmall extends MainLayoutTray {
 	}
 
 
-	@Override
 	protected int getPanelHeight(@NonNull Resources resources) {
 		if (isCommandPaletteShown() || isTextEditingPaletteShown()) {
-			return super.getPanelHeight(resources);
+			return resources.getDimensionPixelSize(R.dimen.main_small_command_palette_height);
 		} else {
-			return tt9.getResources().getDimensionPixelSize(R.dimen.main_small_main_key_wrapper_height);
+			return resources.getDimensionPixelSize(R.dimen.main_small_main_key_wrapper_height);
 		}
 	}
 
 
-	@Override
 	protected void setSoftKeysVisibility() {
 		if (view != null) {
 			togglePanel(R.id.main_soft_keys, true);
@@ -51,22 +56,49 @@ class MainLayoutSmall extends MainLayoutTray {
 
 	@Override
 	void showCommandPalette() {
-		togglePanel(R.id.main_soft_keys, false);
 		super.showCommandPalette();
+		togglePanel(R.id.main_soft_keys, false);
+		isCommandPaletteShown = true;
+		isTextEditingPaletteShown = false;
+		togglePanel(R.id.main_command_keys, true);
+		getHeight(true);
+		renderKeys(false);
 	}
 
 
 	@Override
 	void showKeyboard() {
-		togglePanel(R.id.main_soft_keys, true);
 		super.showKeyboard();
+		togglePanel(R.id.main_soft_keys, true);
+		togglePanel(R.id.main_command_keys, false);
+		isCommandPaletteShown = false;
+		isTextEditingPaletteShown = false;
+		getHeight(true);
+		renderKeys(false);
 	}
 
 
 	@Override
 	void showTextEditingPalette() {
-		togglePanel(R.id.main_soft_keys, false);
 		super.showTextEditingPalette();
+		togglePanel(R.id.main_soft_keys, false);
+		isCommandPaletteShown = false;
+		isTextEditingPaletteShown = true;
+		togglePanel(R.id.main_command_keys, true);
+		getHeight(true);
+		renderKeys(false);
+	}
+
+
+	@Override
+	boolean isCommandPaletteShown() {
+		return isCommandPaletteShown;
+	}
+
+
+	@Override
+	boolean isTextEditingPaletteShown() {
+		return isTextEditingPaletteShown;
 	}
 
 
@@ -86,9 +118,23 @@ class MainLayoutSmall extends MainLayoutTray {
 	@Override
 	protected ArrayList<SoftKey> getKeys() {
 		if (view != null && keys.isEmpty()) {
-			super.getKeys();
+			keys.addAll(getKeysFromContainer(view.findViewById(R.id.main_command_keys)));
 			keys.addAll(getKeysFromContainer(view.findViewById(R.id.main_soft_keys)));
 		}
 		return keys;
+	}
+
+
+	@Override
+	void render() {
+		final boolean isPortrait = !DeviceInfo.isLandscapeOrientation(tt9);
+
+		getView();
+		setSoftKeysVisibility();
+		setPadding();
+		setWidth(tt9.getSettings().getWidthPercent(isPortrait), tt9.getSettings().getAlignment());
+		setBackgroundBlending();
+		enableClickHandlers();
+		renderKeys(false);
 	}
 }

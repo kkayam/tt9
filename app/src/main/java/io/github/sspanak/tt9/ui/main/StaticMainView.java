@@ -21,20 +21,12 @@ public class StaticMainView {
 	}
 
 
+	@Nullable
 	protected BaseMainLayout getViewInstance(SettingsStore settings) {
-		if (settings.isMainLayoutClassic() && (main == null || !main.getClass().equals(MainLayoutClassic.class))) {
-			return new MainLayoutClassic(tt9);
-		} else if (settings.isMainLayoutNumpad() && (main == null || !main.getClass().equals(MainLayoutNumpad.class))) {
-			return new MainLayoutNumpad(tt9);
-		} else if (settings.isMainLayoutSmall() && (main == null || !main.getClass().equals(MainLayoutSmall.class))) {
-			return new MainLayoutSmall(tt9);
-		} else if (settings.isMainLayoutTray() && (main == null || !main.getClass().equals(MainLayoutTray.class))) {
-			return new MainLayoutTray(tt9);
-		} else if (settings.isMainLayoutStealth() && !(main instanceof MainLayoutStealth)) {
-			return new MainLayoutStealth(tt9);
+		if (main instanceof MainLayoutSmall) {
+			return null;
 		}
-
-		return null;
+		return new MainLayoutSmall(tt9);
 	}
 
 
@@ -59,7 +51,6 @@ public class StaticMainView {
 			destroy();
 		}
 		if (!create()) {
-			Logger.w(LOG_TAG, "Invalid MainView setting. Creating default.");
 			main = new MainLayoutSmall(tt9);
 		}
 	}

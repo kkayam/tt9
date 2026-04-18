@@ -101,16 +101,6 @@ public class SettingsStore {
 		this.context = context;
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
 		setFirstInstallVersion();
-
-		// SettingsUI per-instance defaults (computed from device capabilities)
-		DEFAULT_LARGE_LAYOUT = LAYOUT_NUMPAD;
-		if (io.github.sspanak.tt9.util.sys.DeviceInfo.noKeyboard(context)) {
-			DEFAULT_LAYOUT = DEFAULT_LARGE_LAYOUT;
-		} else if (io.github.sspanak.tt9.util.sys.DeviceInfo.noBackspaceKey() && !io.github.sspanak.tt9.util.sys.DeviceInfo.noTouchScreen(context)) {
-			DEFAULT_LAYOUT = LAYOUT_SMALL;
-		} else {
-			DEFAULT_LAYOUT = LAYOUT_TRAY;
-		}
 	}
 
 
@@ -667,14 +657,14 @@ public final static int FONT_SIZE_DEFAULT = 0;
 	public final static float KEY_SHADOW_ELEVATION = 3f;
 	public final static float KEY_SHADOW_TRANSLATION = 2f;
 
-	public final static int LAYOUT_STEALTH = 0;
-	public final static int LAYOUT_TRAY = 2;
 	public final static int LAYOUT_SMALL = 3;
-	public final static int LAYOUT_NUMPAD = 4;
-	public final static int LAYOUT_CLASSIC = 5;
-
-	private final int DEFAULT_LAYOUT;
-	private final int DEFAULT_LARGE_LAYOUT;
+	// Retained as unused sentinels so layout-conditional code (preference screens, soft-key
+	// behaviour) keeps compiling after the multi-layout system was collapsed to Small only.
+	// getMainViewLayout() always returns LAYOUT_SMALL, so these never match.
+	public final static int LAYOUT_STEALTH = -1;
+	public final static int LAYOUT_TRAY = -2;
+	public final static int LAYOUT_NUMPAD = -3;
+	public final static int LAYOUT_CLASSIC = -4;
 
 	public final static int MIN_WIDTH_PERCENT = 50;
 	private int DEFAULT_WIDTH_LANDSCAPE = 0;
@@ -806,44 +796,19 @@ public final static int FONT_SIZE_DEFAULT = 0;
 		return getStringifiedInt(DropDownWidth.NAME, getDefaultWidthPercent(isPortrait));
 	}
 
-	public void setMainViewLayout(int layout) {
-		if (layout != LAYOUT_STEALTH && layout != LAYOUT_TRAY && layout != LAYOUT_SMALL && layout != LAYOUT_NUMPAD && layout != LAYOUT_CLASSIC) {
-			Logger.w(getClass().getSimpleName(), "Ignoring invalid main view layout: " + layout);
-			return;
-		}
-
-		getPrefsEditor().putString(DropDownLayoutType.NAME, Integer.toString(layout));
-		getPrefsEditor().apply();
-	}
-
 	public int getMainViewLayout() {
-		return getStringifiedInt(DropDownLayoutType.NAME, DEFAULT_LAYOUT);
+		return LAYOUT_SMALL;
 	}
 
-	public int getPreferredLargeLayout() {
-		final int layout = prefs.getInt("pref_preferred_large_layout", DEFAULT_LARGE_LAYOUT);
-		return layout != LAYOUT_CLASSIC && layout != LAYOUT_NUMPAD ? DEFAULT_LARGE_LAYOUT : layout;
-	}
+	/** No-op retained so the preference screen's layout picker (now removed) still compiles. */
+	public void setPreferredLargeLayout(int layout) {}
 
-	public void setPreferredLargeLayout(int layout) {
-		if (layout != LAYOUT_CLASSIC && layout != LAYOUT_NUMPAD) {
-			Logger.w(getClass().getSimpleName(), "Ignoring invalid preferred large layout: " + layout);
-			return;
-		}
-
-		getPrefsEditor().putInt("pref_preferred_large_layout", layout).apply();
-	}
-
-	public boolean isMainLayoutLarge() {
-		final int layout = getMainViewLayout();
-		return layout == LAYOUT_CLASSIC || layout == LAYOUT_NUMPAD;
-	}
-
-	public boolean isMainLayoutClassic() { return getMainViewLayout() == LAYOUT_CLASSIC; }
-	public boolean isMainLayoutNumpad() { return getMainViewLayout() == LAYOUT_NUMPAD; }
-	public boolean isMainLayoutTray() { return getMainViewLayout() == LAYOUT_TRAY; }
-	public boolean isMainLayoutSmall() { return getMainViewLayout() == LAYOUT_SMALL; }
-	public boolean isMainLayoutStealth() { return getMainViewLayout() == LAYOUT_STEALTH; }
+	public boolean isMainLayoutLarge() { return false; }
+	public boolean isMainLayoutClassic() { return false; }
+	public boolean isMainLayoutNumpad() { return false; }
+	public boolean isMainLayoutTray() { return false; }
+	public boolean isMainLayoutSmall() { return true; }
+	public boolean isMainLayoutStealth() { return false; }
 
 	/********** SettingsCustomKeyActions **********/
 public static final String CUSTOM_ACTION_KEY_1 = "_1";
