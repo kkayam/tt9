@@ -8,7 +8,6 @@ import java.util.ArrayList;
 
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.ime.TraditionalT9;
-import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.main.keys.SoftKey;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 
@@ -26,7 +25,7 @@ class MainLayoutTray extends MainLayoutExtraPanel {
 	int getHeight(boolean forceRecalculate) {
 		if (height <= 0 || forceRecalculate) {
 			Resources resources = tt9.getResources();
-			height = getStatusBarHeight(resources, tt9.getSettings()) + getPanelHeight(resources);
+			height = getPanelHeight(resources);
 		}
 
 		return height;
@@ -39,14 +38,6 @@ class MainLayoutTray extends MainLayoutExtraPanel {
 		} else {
 			return 0;
 		}
-	}
-
-
-	protected int getStatusBarHeight(@NonNull Resources resources, @NonNull SettingsStore settings) {
-		float textSize = resources.getDimension(R.dimen.status_bar_text_size);
-		float padding = textSize * 0.45f;
-		padding = padding < 1 ? 1 : padding;
-		return Math.round((padding + textSize) * settings.getSuggestionFontScale());
 	}
 
 

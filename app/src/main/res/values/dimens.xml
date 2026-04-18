@@ -8,12 +8,7 @@
 	<!-- standard text size for keys -->
 	<dimen name="key_text_size">21dp</dimen>
 
-	<!-- Status Bar -->
-	<dimen name="status_bar_text_size">16sp</dimen>
-
 	<!-- Main Small -->
-	<dimen name="main_small_suggestion_spacing_horizontal">6sp</dimen>
-
 	<dimen name="main_small_main_key_wrapper_height">46dp</dimen> <!-- key height + margin -->
 	<dimen name="main_small_main_key_wrapper_extra_height_for_messenger">50dp</dimen> <!-- empirically found the correct amount -->
 	<dimen name="main_small_command_palette_height">66dp</dimen>
@@ -39,8 +34,6 @@
 
 	<!-- Numpad -->
 	<dimen name="numpad_max_width">9999dp</dimen>
-	<dimen name="numpad_status_bar_spacing_top">0dp</dimen>
-	<dimen name="numpad_status_bar_spacing_bottom">3dp</dimen>
 	<dimen name="numpad_keys_padding_bottom">6dp</dimen>
 	<dimen name="numpad_keys_spacing_bottom">9dp</dimen> <!-- padding + headroom for shadows -->
 
@@ -60,8 +53,4 @@
 	<dimen name="numpad_key_overlay_hold_icon_spacing_right">1dp</dimen>
 	<dimen name="numpad_key_overlay_hold_text_spacing_top">2dp</dimen>
 	<dimen name="numpad_key_overlay_hold_text_spacing_right">5dp</dimen>
-
-	<dimen name="numpad_suggestion_text_size">17sp</dimen>
-	<dimen name="numpad_suggestion_height">40sp</dimen>
-	<dimen name="numpad_suggestion_min_width">36sp</dimen>
 </resources>

@@ -34,12 +34,6 @@ class MainLayoutNumpad extends MainLayoutClassic {
 
 
 	@Override
-	protected int getStatusBarHeight(@NonNull Resources resources, @NonNull SettingsStore settings) {
-		return resources.getDimensionPixelSize(R.dimen.numpad_status_bar_spacing_bottom) + resources.getDimensionPixelSize(R.dimen.numpad_suggestion_height);
-	}
-
-
-	@Override
 	protected int[] calculateKeyHeight() {
 		final int defaultHeight = super.calculateKeyHeight()[0];
 
@@ -136,9 +130,6 @@ class MainLayoutNumpad extends MainLayoutClassic {
 		}
 
 		addNumericKeys();
-
-		// status bar
-		keys.addAll(getKeysFromContainer(view.findViewById(R.id.status_bar_container)));
 
 		// left Fn
 		addKey(R.id.soft_key_settings);

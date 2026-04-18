@@ -30,7 +30,6 @@
 
 		<item name="colorSuggestionSelectedBackground">@color/suggestion_selected_background</item>
 		<item name="colorSuggestionSelectedText">@color/suggestion_selected_text</item>
-		<item name="colorSuggestionSeparator">@color/suggestion_separator</item>
 	</style>
 
 	<style name="TTheme.AddWord" parent="Theme.AppCompat.DayNight.Dialog.Alert">
@@ -139,45 +138,6 @@
 	</style>
 
 	<!--*******************************************
-		Status Bar
-	*******************************************-->
-
-	<!-- status bar -->
-	<style name="TTheme.MainSmall.StatusBar.Wrapper" parent="">
-		<item name="android:layoutDirection">locale</item>
-		<item name="android:layout_height">wrap_content</item>
-		<item name="android:layout_width">match_parent</item>
-	</style>
-
-	<style name="TTheme.MainSmall.StatusBar.Status" parent="">
-		<item name="android:gravity">center</item>
-		<item name="android:layout_height">match_parent</item>
-		<item name="android:layout_width">match_parent</item>
-
-		<item name="android:textSize">@dimen/status_bar_text_size</item>
-		<item name="android:textStyle">italic</item>
-		<item name="android:textColor">?attr/colorKeyboardText</item>
-	</style>
-
-	<style name="TTheme.MainSmall.StatusBar.SuggestionList" parent="">
-		<item name="android:layout_gravity">center_vertical</item>
-		<item name="android:layout_height">match_parent</item>
-		<item name="android:layout_width">match_parent</item>
-		<item name="android:orientation">horizontal</item>
-		<item name="android:scrollbars">none</item>
-	</style>
-
-	<style name="TTheme.MainSmall.StatusBar.SuggestionList.Item" parent="">
-		<item name="android:gravity">center</item>
-		<item name="android:layout_width">wrap_content</item>
-		<item name="android:layout_height">match_parent</item>
-		<item name="android:paddingLeft">@dimen/main_small_suggestion_spacing_horizontal</item>
-		<item name="android:paddingRight">@dimen/main_small_suggestion_spacing_horizontal</item>
-
-		<item name="android:textSize">@dimen/status_bar_text_size</item>
-	</style>
-
-	<!--*******************************************
 		Small Keys
 	*******************************************-->
 
@@ -249,40 +209,6 @@
 	<!-- The keyboard itself -->
 	<style name="TTheme.Numpad" parent="TTheme.MainSmall">
 		<item name="android:paddingBottom">@dimen/numpad_keys_padding_bottom</item>
-	</style>
-
-
-	<!--*******************************************
-		Numpad Status Bar
-	*******************************************-->
-
-	<!-- Status Bar + Arrows. The Arrow keys themselves are under the "Numpad.Key." section -->
-	<style name="TTheme.Numpad.TopBar" parent="">
-		<item name="android:gravity">center_horizontal</item>
-		<item name="android:layout_width">match_parent</item>
-		<item name="android:layout_height">wrap_content</item>
-		<item name="android:layout_marginTop">@dimen/numpad_status_bar_spacing_top</item>
-		<item name="android:layout_marginBottom">@dimen/numpad_status_bar_spacing_bottom</item>
-	</style>
-
-	<!-- status + suggestions container -->
-	<style name="TTheme.Numpad.StatusBar.Wrapper" parent="">
-		<item name="android:layoutDirection">locale</item>
-		<item name="android:layout_height">@dimen/numpad_suggestion_height</item>
-		<item name="android:layout_width">0dp</item>
-		<item name="android:layout_weight">1</item>
-	</style>
-
-	<!-- one suggestion -->
-	<style name="TTheme.Numpad.StatusBar.SuggestionList.Item" parent="">
-		<item name="android:gravity">center</item>
-		<item name="android:layout_width">wrap_content</item>
-		<item name="android:layout_height">match_parent</item>
-		<item name="android:minWidth">@dimen/numpad_suggestion_min_width</item>
-		<item name="android:paddingLeft">@dimen/main_small_suggestion_spacing_horizontal</item>
-		<item name="android:paddingRight">@dimen/main_small_suggestion_spacing_horizontal</item>
-
-		<item name="android:textSize">@dimen/numpad_suggestion_text_size</item>
 	</style>
 
 
@@ -552,27 +478,6 @@
 		<item name="android:layout_height">match_parent</item>
 		<item name="android:layout_width">match_parent</item>
 		<item name="android:orientation">vertical</item>
-	</style>
-
-	<!-- Classic Status Bar -->
-
-	<style name="TTheme.Classic.StatusBar.Wrapper" parent="">
-		<item name="android:layoutDirection">locale</item>
-		<item name="android:layout_width">match_parent</item>
-		<item name="android:layout_height">wrap_content</item>
-		<item name="android:minHeight">@dimen/numpad_suggestion_min_width</item>
-	</style>
-
-	<style name="TTheme.Classic.StatusBar.SuggestionList.Item" parent="">
-		<item name="android:gravity">center</item>
-		<item name="android:layout_width">wrap_content</item>
-		<item name="android:layout_height">wrap_content</item>
-		<item name="android:minWidth">@dimen/numpad_suggestion_min_width</item>
-		<item name="android:minHeight">@dimen/numpad_suggestion_min_width</item>
-		<item name="android:paddingLeft">@dimen/main_small_suggestion_spacing_horizontal</item>
-		<item name="android:paddingRight">@dimen/main_small_suggestion_spacing_horizontal</item>
-
-		<item name="android:textSize">@dimen/numpad_suggestion_text_size</item>
 	</style>
 
 	<!-- Classic Numpad Key Overlays -->

@@ -9,76 +9,160 @@ import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import io.github.sspanak.tt9.hacks.AppHacks;
 import io.github.sspanak.tt9.hacks.InputType;
 import io.github.sspanak.tt9.languages.Language;
-import io.github.sspanak.tt9.languages.LanguageKind;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
-import io.github.sspanak.tt9.ui.main.ResizableMainView;
-import io.github.sspanak.tt9.ui.tray.StatusBar;
-import io.github.sspanak.tt9.ui.tray.SuggestionsBar;
 import io.github.sspanak.tt9.util.Text;
+import io.github.sspanak.tt9.util.TextTools;
 import io.github.sspanak.tt9.util.chars.Characters;
 import io.github.sspanak.tt9.util.sys.Clipboard;
 
+/**
+ * Headless suggestion data model and text-field commit helper.
+ *
+ * Holds the list of suggestions the IME is working with (including stem/show-more/clipboard
+ * handling that affects what gets committed), drives the composing-text lifecycle on the
+ * text field, and exposes the accept/scroll API used by the typing and command handlers.
+ *
+ * No UI. A future suggestion-bar implementation should read its display state from here.
+ */
 public class SuggestionOps {
+	public static final String CLIPBOARD_SUGGESTION_SUFFIX = "\u200B...\u200B";
+	public static final String SHOW_GROUP_0_SUGGESTION = "(…\u200A)";
+	public static final String SHOW_GROUP_1_SUGGESTION = "(…\u200B)";
+
+	private static final String SHOW_MORE_SUGGESTION = "(...)";
+	private static final String STEM_SUFFIX = "… +";
+	private static final String STEM_VARIATION_PREFIX = "…";
+	private static final String STEM_PUNCTUATION_VARIATION_PREFIX = "​";
+
 	@NonNull private final Handler delayedAcceptHandler;
 	@NonNull private final Consumer<String> onDelayedAccept;
 
-	@Nullable protected SuggestionsBar suggestionBar;
 	@Nullable private AppHacks appHacks;
 	private boolean isInputLimited;
 	@NonNull private TextField textField;
 	@Nullable private final SettingsStore settings;
-	@Nullable private StatusBar statusBar;
+
+	@NonNull private String stem = "";
+	private int selectedIndex = 0;
+	@Nullable private List<String> suggestions = new ArrayList<>();
+	@NonNull private final List<String> visibleSuggestions = new ArrayList<>();
 
 
-	public SuggestionOps(@Nullable InputMethodService ims, @Nullable SettingsStore settings, @Nullable ResizableMainView mainView, @Nullable AppHacks appHacks, @Nullable InputType inputType, @Nullable TextField textField, @Nullable StatusBar statusBar, @Nullable Consumer<String> onDelayedAccept, @Nullable Runnable onSuggestionClick) {
+	public SuggestionOps(@Nullable InputMethodService ims, @Nullable SettingsStore settings, @Nullable AppHacks appHacks, @Nullable InputType inputType, @Nullable TextField textField, @Nullable Consumer<String> onDelayedAccept) {
 		delayedAcceptHandler = new Handler(Looper.getMainLooper());
 		this.onDelayedAccept = onDelayedAccept != null ? onDelayedAccept : s -> {};
 
 		this.appHacks = appHacks;
 		this.isInputLimited = inputType == null || inputType.isLimited();
 		this.settings = settings;
-		this.statusBar = statusBar;
 		this.textField = textField != null ? textField : new TextField(ims, settings, null);
-
-		if (settings != null && mainView != null && onSuggestionClick != null) {
-			suggestionBar = new SuggestionsBar(settings, mainView, onSuggestionClick);
-		}
 	}
 
 
 	public void setLanguage(@Nullable Language newLanguage) {
-		if (suggestionBar != null) {
-			suggestionBar.setRTL(LanguageKind.isRTL(newLanguage));
-		}
+		// Reserved for future UI-facing bar to react to language direction changes.
 	}
 
 
-	public void setDependencies(@NonNull AppHacks appHacks, @NonNull InputType inputType, @NonNull TextField textField, @NonNull StatusBar statusBar) {
+	public void setDependencies(@NonNull AppHacks appHacks, @NonNull InputType inputType, @NonNull TextField textField) {
 		this.appHacks = appHacks;
 		this.isInputLimited = inputType.isLimited();
 		this.textField = textField;
-		this.statusBar = statusBar;
 	}
 
 
 	public boolean isEmpty() {
-		return suggestionBar == null || suggestionBar.isEmpty();
+		return visibleSuggestions.isEmpty();
 	}
 
 
 	public boolean containsStem() {
-		return suggestionBar != null && suggestionBar.containsStem();
+		return !stem.isEmpty();
 	}
 
 
 	@NonNull
-	public String get(int index) {
-		return suggestionBar != null ? suggestionBar.get(index) : "";
+	public String get(int id) {
+		String suggestion = getRaw(id);
+
+		if (suggestion.endsWith(CLIPBOARD_SUGGESTION_SUFFIX) && suggestions != null) {
+			suggestion = Clipboard.get(suggestions.size() - id - 1);
+		}
+
+		if (suggestion.equals(SHOW_MORE_SUGGESTION) || suggestion.equalsIgnoreCase(SHOW_GROUP_1_SUGGESTION) || suggestion.equalsIgnoreCase(SHOW_GROUP_0_SUGGESTION)) {
+			return Characters.PLACEHOLDER;
+		}
+
+		if (suggestion.equals(Characters.NEW_LINE)) return "\n";
+		if (suggestion.equals(Characters.TAB)) return "\t";
+
+		suggestion = suggestion.replace(Characters.ZWNJ_GRAPHIC, Characters.ZWNJ);
+		suggestion = suggestion.replace(Characters.ZWJ_GRAPHIC, Characters.ZWJ);
+		if (suggestion.length() == 1) return suggestion;
+
+		int endIndex = suggestion.indexOf(STEM_SUFFIX);
+		endIndex = endIndex == -1 ? suggestion.length() : endIndex;
+
+		int startIndex = 0;
+		String[] prefixes = {STEM_VARIATION_PREFIX, STEM_PUNCTUATION_VARIATION_PREFIX, Characters.COMBINING_BASE};
+		for (String prefix : prefixes) {
+			int prefixIndex = suggestion.indexOf(prefix) + 1;
+			if (prefixIndex < endIndex) {
+				startIndex = Math.max(startIndex, prefixIndex);
+			}
+		}
+
+		if (startIndex == 0 && endIndex == suggestion.length()) {
+			return suggestion;
+		}
+
+		return stem + suggestion.substring(startIndex, endIndex);
+	}
+
+
+	@NonNull
+	public String getRaw(int id) {
+		final int index = containsStem() ? id - 1 : id;
+		if (index < 0 || suggestions == null || index >= suggestions.size()) {
+			return "";
+		}
+
+		return suggestions.get(index);
+	}
+
+
+	public int getCurrentIndex() {
+		return selectedIndex;
+	}
+
+
+	public String getCurrent() {
+		return get(getCurrentIndex());
+	}
+
+
+	public String getCurrentRaw() {
+		return getRaw(getCurrentIndex());
+	}
+
+
+	public String getCurrent(Language language, int maxLength) {
+		if (maxLength == 0 || isEmpty()) {
+			return "";
+		}
+
+		Text text = new Text(language, getCurrent());
+		if (maxLength > 0 && !text.isEmpty() && text.codePointLength() > maxLength) {
+			return text.substringCodePoints(0, maxLength);
+		}
+
+		return text.toString();
 	}
 
 
@@ -103,41 +187,37 @@ public class SuggestionOps {
 	}
 
 
-	public void set(@Nullable ArrayList<String> suggestions, int selectIndex, boolean containsGenerated) {
-		setVisibility(settings, suggestions == null || suggestions.isEmpty(), false);
-		if (suggestionBar != null) {
-			suggestionBar.setMany(suggestions, selectIndex, containsGenerated);
-		}
+	public void set(@Nullable ArrayList<String> newSuggestions, int selectIndex, boolean containsGenerated) {
+		setMany(newSuggestions, selectIndex, containsGenerated);
 	}
 
 
 	public void setClipboardItems(@NonNull LinkedList<CharSequence> clips) {
 		ArrayList<String> clipStrings = new ArrayList<>(clips.size());
 		for (int i = clips.size() - 1; i >= 0; i--) {
-			String preview = Clipboard.getPreview(i, SuggestionsBar.CLIPBOARD_SUGGESTION_SUFFIX);
+			String preview = Clipboard.getPreview(i, CLIPBOARD_SUGGESTION_SUFFIX);
 			if (preview != null) {
 				clipStrings.add(preview);
 			}
 		}
 
-		setVisibility(settings, clipStrings.isEmpty(), true);
-		if (suggestionBar != null) {
-			suggestionBar.setMany(clipStrings, 0, false);
-		}
+		setMany(clipStrings, 0, false);
 	}
 
 
 	public void setTextCase(@NonNull Language language, int textCase) {
-		if (suggestionBar != null) {
-			suggestionBar.setTextCase(language, textCase);
+		if (suggestions == null || suggestions.isEmpty()) {
+			return;
 		}
+
+		final ArrayList<String> copy = new ArrayList<>(suggestions);
+		copy.replaceAll(text -> new Text(language, text).toTextCase(textCase));
+		setMany(copy, selectedIndex, false);
 	}
 
 
 	public void scrollTo(int index) {
-		if (suggestionBar != null) {
-			suggestionBar.scrollToSuggestion(index);
-		}
+		scrollToSuggestion(index);
 	}
 
 
@@ -212,39 +292,9 @@ public class SuggestionOps {
 			textField.finishComposingText();
 		}
 
-
 		if (clearList) {
 			set(null);
 		}
-	}
-
-
-	public int getCurrentIndex() {
-		return suggestionBar != null ? suggestionBar.getCurrentIndex() : 0;
-	}
-
-
-	public String getCurrent() {
-		return get(getCurrentIndex());
-	}
-
-
-	public String getCurrentRaw() {
-		return suggestionBar != null ? suggestionBar.getRaw(getCurrentIndex()) : "";
-	}
-
-
-	public String getCurrent(Language language, int maxLength) {
-		if (maxLength == 0 || isEmpty()) {
-			return "";
-		}
-
-		Text text = new Text(language, getCurrent());
-		if (maxLength > 0 && !text.isEmpty() && text.codePointLength() > maxLength) {
-			return text.substringCodePoints(0, maxLength);
-		}
-
-		return text.toString();
 	}
 
 
@@ -271,22 +321,132 @@ public class SuggestionOps {
 	}
 
 
-	public void setColorScheme() {
-		if (suggestionBar != null) {
-			suggestionBar.setColorScheme();
+	private void setMany(@Nullable List<String> newSuggestions, int initialSel, boolean containsGenerated) {
+		if ((suggestions == null || suggestions.isEmpty()) && (newSuggestions == null || newSuggestions.isEmpty())) {
+			return;
+		}
+
+		suggestions = newSuggestions;
+		selectedIndex = newSuggestions == null || newSuggestions.isEmpty() ? 0 : Math.max(initialSel, 0);
+
+		visibleSuggestions.clear();
+		setStem(newSuggestions, containsGenerated);
+
+		boolean onlySpecialChars = newSuggestions != null && !newSuggestions.isEmpty() && !(new Text(newSuggestions.get(0)).isAlphabetic());
+		addMany(newSuggestions, onlySpecialChars ? Integer.MAX_VALUE : SettingsStore.SUGGESTIONS_MAX);
+
+		selectedIndex = Math.max(Math.min(selectedIndex, visibleSuggestions.size() - 1), 0);
+	}
+
+
+	private void setStem(List<String> newSuggestions, boolean containsGenerated) {
+		if (newSuggestions == null || newSuggestions.size() < 2) {
+			stem = "";
+			return;
+		}
+
+		stem = containsGenerated && newSuggestions.get(0).length() > 1 ? newSuggestions.get(0).substring(0, newSuggestions.get(0).length() - 1) : "";
+
+		stem = (stem.length() == 1 && newSuggestions.get(0).length() == 2 && !Character.isAlphabetic(newSuggestions.get(0).charAt(1))) ? "" : stem;
+
+		boolean onlyOneContainsStem = true;
+		for (int i = 1; i < newSuggestions.size(); i++) {
+			if (newSuggestions.get(i).contains(stem)) {
+				onlyOneContainsStem = false;
+				break;
+			}
+		}
+		stem = onlyOneContainsStem ? "" : stem;
+
+		if (!stem.isEmpty() && !newSuggestions.contains(stem)) {
+			visibleSuggestions.add(stem + STEM_SUFFIX);
+			selectedIndex++;
 		}
 	}
 
 
-	private void setVisibility(@Nullable SettingsStore settings, boolean willBeEmpty, boolean forceVisible) {
-		final boolean areSuggestionsVisible = isInputLimited || forceVisible || (settings != null && settings.getShowSuggestions());
-
-		if (suggestionBar != null) {
-			suggestionBar.setVisible(areSuggestionsVisible);
+	private void addMany(List<String> newSuggestions, int limit) {
+		if (newSuggestions == null) {
+			return;
 		}
 
-		if (statusBar != null) {
-			statusBar.setShown(willBeEmpty || !areSuggestionsVisible);
+		for (int i = 0, end = Math.min(limit, newSuggestions.size()); i < end; i++) {
+			add(newSuggestions.get(i));
 		}
+
+		if (newSuggestions.size() > limit) {
+			visibleSuggestions.add(SHOW_MORE_SUGGESTION);
+		}
+	}
+
+
+	private void add(@NonNull String suggestion) {
+		if (!stem.isEmpty() && suggestion.length() == stem.length() + 1 && suggestion.toLowerCase().startsWith(stem.toLowerCase())) {
+			String trimmedSuggestion = suggestion.substring(stem.length());
+			char firstChar = trimmedSuggestion.charAt(0);
+
+			String prefix = Character.isAlphabetic(firstChar) && !Characters.isCombiningPunctuation(firstChar) ? STEM_VARIATION_PREFIX : STEM_PUNCTUATION_VARIATION_PREFIX;
+			prefix = Characters.isFathatan(firstChar) ? " " : prefix;
+			visibleSuggestions.add(prefix + formatUnreadableSuggestion(trimmedSuggestion));
+			return;
+		}
+
+		visibleSuggestions.add(formatUnreadableSuggestion(suggestion));
+	}
+
+
+	private String formatUnreadableSuggestion(String suggestion) {
+		if (TextTools.isCombining(suggestion)) {
+			return Characters.COMBINING_BASE + suggestion;
+		}
+
+		return switch (suggestion) {
+			case "\n" -> Characters.NEW_LINE;
+			case "\t" -> Characters.TAB;
+			case Characters.ZWJ -> Characters.ZWJ_GRAPHIC;
+			case Characters.ZWNJ -> Characters.ZWNJ_GRAPHIC;
+			default -> suggestion;
+		};
+	}
+
+
+	private void scrollToSuggestion(int increment) {
+		if (visibleSuggestions.size() <= 1) {
+			return;
+		}
+
+		calculateScrollIndex(increment);
+		appendHiddenSuggestionsIfNeeded(increment < 0);
+	}
+
+
+	private void calculateScrollIndex(int increment) {
+		if (visibleSuggestions.isEmpty()) {
+			selectedIndex = 0;
+			return;
+		}
+
+		selectedIndex = selectedIndex + increment;
+		if (selectedIndex == visibleSuggestions.size()) {
+			selectedIndex = containsStem() ? 1 : 0;
+		} else if (selectedIndex < 0) {
+			selectedIndex = visibleSuggestions.size() - 1;
+		} else if (selectedIndex == 0 && containsStem()) {
+			selectedIndex = visibleSuggestions.size() - 1;
+		}
+	}
+
+
+	private boolean appendHiddenSuggestionsIfNeeded(boolean scrollBack) {
+		if (selectedIndex < 0 || selectedIndex >= visibleSuggestions.size() || !visibleSuggestions.get(selectedIndex).equals(SHOW_MORE_SUGGESTION)) {
+			return false;
+		}
+
+		visibleSuggestions.clear();
+		addMany(suggestions, Integer.MAX_VALUE);
+		selectedIndex = scrollBack || selectedIndex >= visibleSuggestions.size() ? visibleSuggestions.size() - 1 : selectedIndex;
+		selectedIndex = Math.max(selectedIndex, 0);
+
+		return true;
 	}
 }

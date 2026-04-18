@@ -14,7 +14,6 @@ import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.StatusIcon;
 import io.github.sspanak.tt9.ui.main.MainView;
-import io.github.sspanak.tt9.ui.tray.StatusBar;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.Ternary;
 import io.github.sspanak.tt9.util.Text;
@@ -22,8 +21,8 @@ import io.github.sspanak.tt9.util.sys.DeviceInfo;
 import io.github.sspanak.tt9.util.sys.SystemSettings;
 
 /**
- * Base IME handler: lifecycle hooks, UI scaffolding (main view, status bar, status icon),
- * visibility forcing, and the abstract contract every handler in the chain must fulfil.
+ * Base IME handler: lifecycle hooks, UI scaffolding (main view, status icon), visibility
+ * forcing, and the abstract contract every handler in the chain must fulfil.
  *
  * Formed by merging the former AbstractHandler and UiHandler layers.
  */
@@ -36,7 +35,6 @@ abstract class BaseHandler extends InputMethodService {
 	protected int displayTextCase = InputMode.CASE_UNDEFINED;
 	protected boolean isMainViewShown = false;
 	protected MainView mainView = null;
-	protected StatusBar statusBar = null;
 
 
 	/********** Abstract contract **********/
@@ -59,7 +57,6 @@ abstract class BaseHandler extends InputMethodService {
 
 	// UI
 	abstract protected void createSuggestionBar();
-	abstract protected void resetStatus();
 
 	// informational
 	abstract protected InputMode determineInputMode();
@@ -104,9 +101,7 @@ abstract class BaseHandler extends InputMethodService {
 
 	protected void initTray() {
 		mainView.getView();
-		statusBar = new StatusBar(this, settings, mainView, this::resetStatus).setColorScheme();
 		createSuggestionBar();
-		getSuggestionOps().setColorScheme();
 	}
 
 
@@ -114,11 +109,8 @@ abstract class BaseHandler extends InputMethodService {
 		if (mainView.create()) {
 			initTray();
 			setCurrentView();
-		} else {
-			getSuggestionOps().setColorScheme();
 		}
 		setStatusIcon(inputMode, getFinalContext().getLanguage());
-		statusBar.setColorScheme().setText(inputMode);
 		mainView.showKeyboard();
 		mainView.render();
 

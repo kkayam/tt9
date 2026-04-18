@@ -196,10 +196,7 @@ public abstract class CommandHandler extends TypingHandler {
 			return true;
 		}
 
-		// Error banner dismissal + emoji mode exit
-		if (statusBar.isErrorShown()) {
-			resetStatus();
-		}
+		// Emoji mode exit
 		if (inEmojiMode) {
 			exitEmojiMode();
 		}
@@ -508,7 +505,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		statusBar.setText(mInputMode);
 		mainView.render();
 
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
@@ -717,7 +713,6 @@ public abstract class CommandHandler extends TypingHandler {
 			return;
 		}
 
-		statusBar.setText(R.string.loading);
 		suggestionOps.cancelDelayedAccept();
 		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
 		autoTextCase = new AutoTextCase(settings, new Sequences(), inputType);
@@ -728,7 +723,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	protected void stopVoiceInput() {
 		if (voiceInputOps != null && voiceInputOps.isListening()) {
-			statusBar.setText(R.string.voice_input_stopping);
 			voiceInputOps.stop();
 		}
 	}
@@ -738,7 +732,6 @@ public abstract class CommandHandler extends TypingHandler {
 		if (!mainView.isCommandPaletteShown()) {
 			mainView.render();
 		}
-		statusBar.setText(voiceInputOps);
 	}
 
 
@@ -776,7 +769,6 @@ public abstract class CommandHandler extends TypingHandler {
 			resetStatus();
 		} else {
 			Logger.e(LOG_TAG, "Failed to listen. " + error.debugMessage);
-			statusBar.setError(error.toString());
 			if (error.isNoPermission()) {
 				RequestPermissionDialog.show(this, Manifest.permission.RECORD_AUDIO);
 			}
@@ -791,13 +783,8 @@ public abstract class CommandHandler extends TypingHandler {
 	/********** Commands (word add/edit, language & mode switching) **********/
 
 	protected void resetStatus() {
-		if (mainView.isCommandPaletteShown()) {
-			statusBar.setText(R.string.commands_select_command);
-		} else if (mainView.isTextEditingPaletteShown()) {
-			statusBar.setText(R.string.commands_select_command);
-		} else {
-			statusBar.setText(mInputMode);
-		}
+		// No-op: the visible status bar has been removed. Callers still invoke this
+		// at transition points; a future suggestion bar should hook in here.
 	}
 
 
@@ -906,7 +893,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		statusBar.setText(mInputMode);
 		mainView.render();
 
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
@@ -964,7 +950,6 @@ public abstract class CommandHandler extends TypingHandler {
 	private void onAfterLanguageChange() {
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		statusBar.setText(mInputMode);
 		suggestionOps.setLanguage(mLanguage);
 		mainView.render();
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {

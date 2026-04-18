@@ -70,7 +70,7 @@ import io.github.sspanak.tt9.preferences.screens.modePredictive.DropDownOneKeyEm
 import io.github.sspanak.tt9.preferences.screens.modePredictive.DropDownPredictiveAutoAcceptTime;
 import io.github.sspanak.tt9.preferences.screens.modePredictive.DropDownZeroKeyCharacter;
 import io.github.sspanak.tt9.preferences.screens.modePredictive.OneKeyEmojiOptions;
-import io.github.sspanak.tt9.ui.tray.SuggestionsBar;
+import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.chars.Characters;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
@@ -521,14 +521,14 @@ private final static String CHARS_1_PREFIX = "punctuation_order_key_1_initial_";
 			case 0 -> {
 				chars = getChars0AsList(language);
 				if (!getCharsExtra(language, CHARS_GROUP_0).isEmpty()) {
-					chars.add(SuggestionsBar.SHOW_GROUP_0_SUGGESTION);
+					chars.add(SuggestionOps.SHOW_GROUP_0_SUGGESTION);
 				}
 				chars.addAll(getCharsExtraAsList(language, CHARS_AFTER_GROUP_0));
 			}
 			case 1 -> {
 				chars = getChars1AsList(language);
 				if (!getCharsExtra(language, CHARS_GROUP_1).isEmpty()) {
-					chars.add(SuggestionsBar.SHOW_GROUP_1_SUGGESTION);
+					chars.add(SuggestionOps.SHOW_GROUP_1_SUGGESTION);
 				}
 				chars.addAll(getCharsExtraAsList(language, CHARS_AFTER_GROUP_1));
 			}

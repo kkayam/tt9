@@ -46,7 +46,6 @@ public class TraditionalT9 extends CommandHandler {
 		// because it will cause: "IllegalStateException: The specified child already has a parent"
 		mainView.forceCreate();
 		initTray();
-		statusBar.setText(mInputMode);
 		suggestionOps.set(mInputMode.getSuggestions(), mInputMode.containsGeneratedSuggestions());
 		mainView.render();
 
@@ -199,7 +198,6 @@ public class TraditionalT9 extends CommandHandler {
 		stopVoiceInput();
 		onFinishTyping();
 		suggestionOps.clear();
-		statusBar.setText(mInputMode);
 
 		if (isInputViewShown()) {
 			updateInputViewShown();

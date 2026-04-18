@@ -49,7 +49,7 @@ public abstract class TypingHandler extends BaseHandler {
 	@NonNull protected InputType inputType = new InputType(null, null);
 	@NonNull protected TextField textField = new TextField(null, null, null);
 	@NonNull protected TextSelection textSelection = new TextSelection(null, null);
-	@NonNull protected SuggestionOps suggestionOps = new SuggestionOps(null, null, null, null, null, null, null, null, null);
+	@NonNull protected SuggestionOps suggestionOps = new SuggestionOps(null, null, null, null, null, null);
 
 	@Nullable private Handler shiftStateDebounceHandler;
 	@Nullable private Handler suggestionHandler;
@@ -71,7 +71,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	protected void createSuggestionBar() {
-		suggestionOps = new SuggestionOps(this, settings, mainView, appHacks, inputType, textField, statusBar, this::onAcceptSuggestionsDelayed, this::onOK);
+		suggestionOps = new SuggestionOps(this, settings, appHacks, inputType, textField, this::onAcceptSuggestionsDelayed);
 	}
 
 
@@ -102,7 +102,6 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		statusBar.setText(mInputMode);
 		mainView.render();
 	}
 
@@ -123,7 +122,6 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		statusBar.setText(mInputMode);
 		mainView.render();
 	}
 
@@ -360,7 +358,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 		// changing the TextField and notifying all interested classes is an atomic operation
 		appHacks.setDependencies(inputType, textField, textSelection);
-		suggestionOps.setDependencies(appHacks, inputType, textField, statusBar);
+		suggestionOps.setDependencies(appHacks, inputType, textField);
 	}
 
 
@@ -828,9 +826,6 @@ public abstract class TypingHandler extends BaseHandler {
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
 		mainView.renderDynamicKeys();
-		if (!mainView.isTextEditingPaletteShown() && !mainView.isCommandPaletteShown()) {
-			statusBar.setText(mInputMode);
-		}
 	}
 
 

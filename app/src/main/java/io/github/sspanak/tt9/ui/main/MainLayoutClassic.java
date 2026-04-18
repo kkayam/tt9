@@ -123,25 +123,11 @@ public class MainLayoutClassic extends MainLayoutExtraPanel {
 			Resources resources = tt9.getResources();
 
 			height =
-				Math.round(resources.getDimension(R.dimen.numpad_status_bar_spacing_top))
-				+ getStatusBarHeight(resources, tt9.getSettings())
-				+ getKeyColumnHeight(calculateKeyHeight()[0])
+				getKeyColumnHeight(calculateKeyHeight()[0])
 				+ Math.round(resources.getDimension(R.dimen.numpad_keys_spacing_bottom));
 		}
 
 		return height;
-	}
-
-
-	protected int getStatusBarHeight(@NonNull Resources resources, @NonNull SettingsStore settings) {
-		final int spacing = resources.getDimensionPixelSize(R.dimen.numpad_status_bar_spacing_bottom);
-
-		float textSize = resources.getDimension(R.dimen.numpad_suggestion_text_size);
-		float minHeight = resources.getDimensionPixelSize(R.dimen.numpad_suggestion_min_width);
-
-		return Math.round(
-			spacing + Math.max(minHeight, (textSize * settings.getSuggestionFontScale()))
-		);
 	}
 
 

@@ -11,8 +11,8 @@ import io.github.sspanak.tt9.ime.modes.helpers.Sequences;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.languages.LanguageKind;
 import io.github.sspanak.tt9.languages.NullLanguage;
+import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
-import io.github.sspanak.tt9.ui.tray.SuggestionsBar;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.chars.Characters;
 
@@ -110,9 +110,9 @@ abstract public class InputMode {
 	public void onCursorMove(@NonNull String word) { if (!digitSequence.isEmpty()) onAcceptSuggestion(word); }
 	public boolean onReplaceSuggestion(@NonNull String rawWord) {
 		String newSequence;
-		if (SuggestionsBar.SHOW_GROUP_0_SUGGESTION.equalsIgnoreCase(rawWord)) {
+		if (SuggestionOps.SHOW_GROUP_0_SUGGESTION.equalsIgnoreCase(rawWord)) {
 			newSequence = seq.CHARS_GROUP_0_SEQUENCE;
-		} else if (SuggestionsBar.SHOW_GROUP_1_SUGGESTION.equalsIgnoreCase(rawWord)) {
+		} else if (SuggestionOps.SHOW_GROUP_1_SUGGESTION.equalsIgnoreCase(rawWord)) {
 			newSequence = seq.CHARS_GROUP_1_SEQUENCE;
 		} else {
 			return false;

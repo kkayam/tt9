@@ -36,5 +36,4 @@
 
 	<color name="suggestion_selected_background">@color/material_dynamic_primary80</color>
 	<color name="suggestion_selected_text">@color/keyboard_text</color>
-	<color name="suggestion_separator">@color/material_dynamic_secondary60</color>
 </resources>

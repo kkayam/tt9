@@ -22,5 +22,4 @@
 
 	<color name="suggestion_selected_background">#347bac</color>
 	<color name="suggestion_selected_text">#fff</color>
-	<color name="suggestion_separator">#888888</color>
 </resources>

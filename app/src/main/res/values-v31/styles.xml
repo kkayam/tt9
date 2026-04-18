@@ -29,7 +29,6 @@
 
 		<item name="colorSuggestionSelectedBackground">@color/suggestion_selected_background</item>
 		<item name="colorSuggestionSelectedText">@color/suggestion_selected_text</item>
-		<item name="colorSuggestionSeparator">@color/suggestion_separator</item>
 	</style>
 
 	<!--*******************************************
