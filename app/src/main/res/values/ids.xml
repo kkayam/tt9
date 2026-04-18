@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-Placeholder IDs for views that only lived in the deleted numpad/classic keyboard
-layouts. The classes that reference them (SoftKeyArrow, SoftKeyNumberNumpad, …)
-are still compiled because other layout-independent code imports them; at runtime
-findViewById returns null and those branches never fire.
+Placeholder IDs referenced by commands' `getPaletteKey()` (they used to tie commands
+to soft keys in the deleted palette). No view owns these IDs anymore; keeping them so
+the command classes still compile.
 -->
 <resources>
-	<item name="soft_key_0" type="id" />
 	<item name="soft_key_1" type="id" />
 	<item name="soft_key_2" type="id" />
 	<item name="soft_key_3" type="id" />
@@ -16,17 +14,4 @@ findViewById returns null and those branches never fire.
 	<item name="soft_key_7" type="id" />
 	<item name="soft_key_8" type="id" />
 	<item name="soft_key_9" type="id" />
-	<item name="soft_key_200" type="id" />
-	<item name="soft_key_left_arrow" type="id" />
-	<item name="soft_key_right_arrow" type="id" />
-	<item name="soft_key_text_201" type="id" />
-	<item name="soft_key_text_202" type="id" />
-	<item name="soft_key_wrapper_1" type="id" />
-	<item name="soft_key_wrapper_2" type="id" />
-	<item name="soft_key_wrapper_3" type="id" />
-	<item name="soft_key_wrapper_4" type="id" />
-	<item name="soft_key_wrapper_5" type="id" />
-	<item name="soft_key_wrapper_6" type="id" />
-	<item name="soft_key_wrapper_7" type="id" />
-	<item name="soft_key_wrapper_8" type="id" />
 </resources>

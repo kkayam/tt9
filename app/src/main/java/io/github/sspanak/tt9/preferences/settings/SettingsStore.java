@@ -867,17 +867,6 @@ public final static int NUMPAD_SHAPE_SQUARE = 0;
 	public static final String DEFAULT_LFN_KEY_ORDER = "1234";
 	public static final String DEFAULT_RFN_KEY_ORDER = "5678";
 
-	public static final HashMap<Character, Integer> KEY_ORDER_MAP = new HashMap<>() {{
-		put('1', R.id.soft_key_wrapper_1);
-		put('2', R.id.soft_key_wrapper_2);
-		put('3', R.id.soft_key_wrapper_3);
-		put('4', R.id.soft_key_wrapper_4);
-		put('5', R.id.soft_key_wrapper_5);
-		put('6', R.id.soft_key_wrapper_6);
-		put('7', R.id.soft_key_wrapper_7);
-		put('8', R.id.soft_key_wrapper_8);
-	}};
-
 	public boolean getArrowsLeftRight() {
 		return prefs.getBoolean(SwitchLeftRightArrows.NAME, SwitchLeftRightArrows.DEFAULT);
 	}

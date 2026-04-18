@@ -5,18 +5,16 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import io.github.sspanak.tt9.ui.main.MainView;
-import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 
+/**
+ * Dialog builder used by the settings screens. No hooks for showing from an IME window —
+ * the IME UI was removed, so popups only exist inside the settings Activity.
+ */
 public class PopupBuilder {
-	private static final String LOG_TAG = PopupBuilder.class.getSimpleName();
-
 	private final Context context;
 	private MaterialAlertDialogBuilder builder12;
 	private AlertDialog.Builder builderLegacy;
@@ -81,15 +79,9 @@ public class PopupBuilder {
 
 	public PopupBuilder setPositiveButton(String text, Runnable action) {
 		if (DeviceInfo.AT_LEAST_ANDROID_12) {
-			builder12.setPositiveButton(
-				text,
-				(dialog, which) -> action.run()
-			);
+			builder12.setPositiveButton(text, (dialog, which) -> action.run());
 		} else {
-			builderLegacy.setPositiveButton(
-				text,
-				(dialog, which) -> action.run()
-			);
+			builderLegacy.setPositiveButton(text, (dialog, which) -> action.run());
 		}
 		return this;
 	}
@@ -121,41 +113,5 @@ public class PopupBuilder {
 		} else {
 			return builderLegacy.show();
 		}
-	}
-
-
-	/**
-	 * In IME context, it is not that easy to show a popup dialog. We need to make it "valid" using
-	 * the hacks below. Made possible thanks to:
-	 * <a href="https://stackoverflow.com/questions/51906586/display-dialog-from-input-method-service-in-android-9-android-pie">Philipp</a>
-	 * <a href="https://stackoverflow.com/questions/3494476/android-ime-how-to-show-a-pop-up-dialog/3508462#3508462">Maher Abuthraa</a>
-	 */
-	public Dialog showFromIme(MainView main) {
-		if (main == null || main.getView() == null) {
-			Logger.e(LOG_TAG, "Cannot show a popup dialog. Main view is null.");
-			return null;
-		}
-
-		if (main.getView().getWindowToken() == null) {
-			Logger.d(LOG_TAG, "Not creating popup dialog, because the Main view has no token yet. Try again when it is shown to the user.");
-			return null;
-		}
-
-		Dialog dialog = DeviceInfo.AT_LEAST_ANDROID_12 ? builder12.create() : builderLegacy.create();
-
-		Window window = dialog.getWindow();
-		if (window == null) {
-			Logger.e(LOG_TAG, "Cannot show a popup dialog. AlertDialog generated a Dialog with NULL Window.");
-			return null;
-		}
-
-		WindowManager.LayoutParams layout = window.getAttributes();
-		layout.token = main.getView().getWindowToken();
-		layout.type = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG;
-		window.setAttributes(layout);
-		window.addFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM);
-		dialog.show();
-
-		return dialog;
 	}
 }

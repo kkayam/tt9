@@ -13,7 +13,6 @@ import io.github.sspanak.tt9.ime.modes.InputMode;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.StatusIcon;
-import io.github.sspanak.tt9.ui.main.MainView;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.Ternary;
 import io.github.sspanak.tt9.util.Text;
@@ -21,10 +20,11 @@ import io.github.sspanak.tt9.util.sys.DeviceInfo;
 import io.github.sspanak.tt9.util.sys.SystemSettings;
 
 /**
- * Base IME handler: lifecycle hooks, UI scaffolding (main view, status icon), visibility
- * forcing, and the abstract contract every handler in the chain must fulfil.
+ * Base IME handler: lifecycle hooks, status-bar icon, visibility forcing, and the abstract
+ * contract every handler in the chain must fulfil.
  *
- * Formed by merging the former AbstractHandler and UiHandler layers.
+ * There is no on-screen keyboard UI anymore — the service consumes hardware key events and
+ * commits text to the focused field.
  */
 abstract class BaseHandler extends InputMethodService {
 	private final static String LOG_TAG = "BaseHandler";
@@ -34,7 +34,6 @@ abstract class BaseHandler extends InputMethodService {
 
 	protected int displayTextCase = InputMode.CASE_UNDEFINED;
 	protected boolean isMainViewShown = false;
-	protected MainView mainView = null;
 
 
 	/********** Abstract contract **********/
@@ -54,9 +53,6 @@ abstract class BaseHandler extends InputMethodService {
 	abstract protected void setInputField(EditorInfo inputField);
 	abstract protected void waitForSpaceTrimKey();
 	abstract protected void stopWaitingForSpaceTrimKey();
-
-	// UI
-	abstract protected void createSuggestionBar();
 
 	// informational
 	abstract protected InputMode determineInputMode();
@@ -88,44 +84,17 @@ abstract class BaseHandler extends InputMethodService {
 	}
 
 
-	protected void onInit() {
-		if (mainView == null) {
-			mainView = new MainView(getFinalContext());
-			initTray();
-		} else {
-			mainView.destroy();
-			mainView.getView();
-		}
-	}
-
-
-	protected void initTray() {
-		mainView.getView();
-		createSuggestionBar();
-	}
+	protected void onInit() {}
 
 
 	protected void initUi(InputMode inputMode) {
-		if (mainView.create()) {
-			initTray();
-			setCurrentView();
-		}
 		setStatusIcon(inputMode, getFinalContext().getLanguage());
-		mainView.showKeyboard();
-		mainView.render();
-
-		SystemSettings.setNavigationBarBackground(getWindow().getWindow(), settings, mainView.isBackgroundBlendingEnabled());
 
 		if (appHacks.isBrutalForceShowNeeded()) {
 			brutalForceShowWindow();
 		} else if (!isInputViewShown()) {
 			updateInputViewShown();
 		}
-	}
-
-
-	public void setCurrentView() {
-		setInputView(onCreateInputView());
 	}
 
 

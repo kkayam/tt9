@@ -42,14 +42,9 @@ public class TraditionalT9 extends CommandHandler {
 
 	@Override
 	public View onCreateInputView() {
-		// This may get called even when not switching IMEs, but we can't reuse the previous view
-		// because it will cause: "IllegalStateException: The specified child already has a parent"
-		mainView.forceCreate();
-		initTray();
+		// The IME has no on-screen view — hardware keys drive the entire pipeline.
 		suggestionOps.set(mInputMode.getSuggestions(), mInputMode.containsGeneratedSuggestions());
-		mainView.render();
-
-		return mainView.getView();
+		return null;
 	}
 
 
@@ -312,10 +307,7 @@ public class TraditionalT9 extends CommandHandler {
 		try {
 			super.onDestroy();
 		} catch (Exception e) {
-			if (mainView != null && mainView.getView() != null) {
-				Logger.e(LOG_TAG, "===> MainView destroy failed: " + e.getMessage() + ". Destroying manually.");
-				mainView.destroy();
-			}
+			Logger.e(LOG_TAG, "===> MainView destroy failed: " + e.getMessage());
 		}
 
 		Logger.d(LOG_TAG, "===> Shutdown completed");

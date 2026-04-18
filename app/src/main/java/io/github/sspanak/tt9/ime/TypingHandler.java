@@ -31,7 +31,6 @@ import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.languages.LanguageKind;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.UI;
-import io.github.sspanak.tt9.ui.tray.SuggestionBar;
 import io.github.sspanak.tt9.util.Text;
 import io.github.sspanak.tt9.util.Timer;
 import io.github.sspanak.tt9.util.chars.Characters;
@@ -71,11 +70,8 @@ public abstract class TypingHandler extends BaseHandler {
 	protected boolean hasPendingNextWordPrediction = false;
 
 
-	protected void createSuggestionBar() {
+	protected void initSuggestionOps() {
 		suggestionOps = new SuggestionOps(this, settings, appHacks, inputType, textField, this::onAcceptSuggestionsDelayed);
-		if (mainView != null && mainView.getView() != null) {
-			suggestionOps.setBar(new SuggestionBar(mainView.getView(), settings));
-		}
 	}
 
 
@@ -106,7 +102,6 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		mainView.render();
 	}
 
 
@@ -126,7 +121,6 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		mainView.render();
 	}
 
 
@@ -400,7 +394,6 @@ public abstract class TypingHandler extends BaseHandler {
 
 		if (appHacks.onBackspace(settings, mInputMode)) {
 			mInputMode.reset();
-			mainView.renderDynamicKeys();
 			return false;
 		}
 
@@ -459,7 +452,6 @@ public abstract class TypingHandler extends BaseHandler {
 		// language-appropriate space. onText then shows the next-word prediction, if any.
 		if (key == 0 && !hold && !InputModeKind.isNumeric(mInputMode)) {
 			onText(Characters.getSpace(mLanguage), false);
-			mainView.renderDynamicKeys();
 			return true;
 		}
 
@@ -829,7 +821,6 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		mainView.renderDynamicKeys();
 	}
 
 

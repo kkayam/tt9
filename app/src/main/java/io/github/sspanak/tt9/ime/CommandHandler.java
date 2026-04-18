@@ -33,10 +33,7 @@ import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.languages.LanguageKind;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.UI;
-import io.github.sspanak.tt9.ui.dialogs.AddWordDialog;
-import io.github.sspanak.tt9.ui.dialogs.ChangeLanguageDialog;
 import io.github.sspanak.tt9.ui.dialogs.RequestPermissionDialog;
-import io.github.sspanak.tt9.ui.main.MainView;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.Ternary;
 import io.github.sspanak.tt9.util.chars.Characters;
@@ -114,9 +111,6 @@ public abstract class CommandHandler extends TypingHandler {
 			orientationListener.stop();
 			orientationListener = null;
 		}
-		if (mainView != null) {
-			mainView.destroy();
-		}
 	}
 
 
@@ -124,7 +118,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	@Override
 	public boolean onBackspace(int repeat) {
-		mainView.renderClickFn(KeyEvent.KEYCODE_DEL);
 		if (inEmojiMode) {
 			exitEmojiMode();
 			return true;
@@ -135,8 +128,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	@Override
 	public boolean onOK() {
-		mainView.renderClickFn(KeyEvent.KEYCODE_ENTER);
-
 		suggestionOps.cancelDelayedAccept();
 		stopWaitingForSpaceTrimKey();
 
@@ -185,8 +176,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	@Override
 	protected boolean onNumber(int key, boolean hold, int repeat) {
-		mainView.renderClickNumber(key);
-
 		// Stop voice input on any number key
 		stopVoiceInput();
 		stopWaitingForSpaceTrimKey();
@@ -201,28 +190,12 @@ public abstract class CommandHandler extends TypingHandler {
 			exitEmojiMode();
 		}
 
-		// Command palette intercepts number presses
-		if (!shouldBeOff() && mainView.isCommandPaletteShown()) {
-			CommandCollection.getByHardKey(CommandCollection.COLLECTION_PALETTE, key).run(getFinalContext());
-			return true;
-		}
-
-		// Text-editing palette intercepts too
-		if (!shouldBeOff() && mainView.isTextEditingPaletteShown()) {
-			onTextEditingCommand(key);
-			return true;
-		}
-
 		return super.onNumber(key, hold, repeat);
 	}
 
 
 	@Override
 	public boolean onHotkey(int keyCode, boolean repeat, boolean validateOnly) {
-		if (!validateOnly) {
-			mainView.renderClickFn(keyCode);
-		}
-
 		// Voice-input and recomposing-aware handling for star/pound
 		if (voiceInputOps != null && voiceInputOps.isListening()) {
 			switch (keyCode) {
@@ -330,14 +303,7 @@ public abstract class CommandHandler extends TypingHandler {
 
 	public boolean onKeyCommandPalette(boolean validateOnly) {
 		if (shouldBeOff()) return false;
-		if (validateOnly) return true;
-		if (mainView.isCommandPaletteShown()) {
-			hideCommandPalette();
-		} else {
-			showCommandPalette();
-			forceShowWindow();
-		}
-		return true;
+		return validateOnly;
 	}
 
 
@@ -425,7 +391,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
 		resetKeyRepeat();
-		mainView.renderDynamicKeys();
 		return true;
 	}
 
@@ -457,7 +422,6 @@ public abstract class CommandHandler extends TypingHandler {
 				.loadSuggestions(filter);
 		}
 
-		mainView.renderDynamicKeys();
 		return true;
 	}
 
@@ -468,7 +432,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 		backward = isLanguageRTL != backward;
 		scrollSuggestions(backward);
-		mainView.renderDynamicKeys();
 		return true;
 	}
 
@@ -505,7 +468,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		mainView.render();
 
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
 			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
@@ -632,14 +594,7 @@ public abstract class CommandHandler extends TypingHandler {
 			return true;
 		}
 
-		if (!hideTextEditingPalette()) {
-			return false;
-		}
-
-		if (settings.isMainLayoutSmall() || settings.isMainLayoutTray()) {
-			mainView.showCommandPalette();
-		}
-		return true;
+		return hideTextEditingPalette();
 	}
 
 
@@ -679,29 +634,12 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	public void showTextEditingPalette() {
-		if (inputType.isLimited() || mainView.isTextEditingPaletteShown()) return;
-
-		suggestionOps.cancelDelayedAccept();
-		suggestionOps.acceptIncomplete();
-		mInputMode.reset();
-		stopVoiceInput();
-
-		mainView.showTextEditingPalette();
-		resetStatus();
+		// No-op: there is no UI to show anymore.
 	}
 
 
 	public boolean hideTextEditingPalette() {
-		if (!mainView.isTextEditingPaletteShown()) return false;
-
-		String word = suggestionOps.acceptCurrent();
-		if (Clipboard.contains(word)) {
-			Clipboard.copy(this, word);
-		}
-
-		mainView.showKeyboard();
-		resetStatus();
-		return true;
+		return false;
 	}
 
 
@@ -728,11 +666,7 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	private void onVoiceInputStarted() {
-		if (!mainView.isCommandPaletteShown()) {
-			mainView.render();
-		}
-	}
+	private void onVoiceInputStarted() {}
 
 
 	private String autoCapitalize(String str) {
@@ -746,9 +680,6 @@ public abstract class CommandHandler extends TypingHandler {
 	private void onVoiceInputStopped(String text) {
 		onText(autoCapitalize(text), false);
 		resetStatus();
-		if (!mainView.isCommandPaletteShown()) {
-			mainView.render();
-		}
 	}
 
 
@@ -773,10 +704,6 @@ public abstract class CommandHandler extends TypingHandler {
 				RequestPermissionDialog.show(this, Manifest.permission.RECORD_AUDIO);
 			}
 		}
-
-		if (!mainView.isCommandPaletteShown()) {
-			mainView.render();
-		}
 	}
 
 
@@ -789,14 +716,8 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	public void addWord() {
-		if (!CmdAddWord.validate(getFinalContext(), settings, mLanguage)) return;
-
-		suggestionOps.cancelDelayedAccept();
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
-		mainView.showKeyboard();
-		resetStatus();
-
-		new AddWordDialog(getFinalContext(), mLanguage, textField.getSurroundingWord(mLanguage)).show();
+		// The add-word dialog has been removed along with the IME UI.
+		Logger.d(LOG_TAG, "addWord: dialog removed — no-op");
 	}
 
 
@@ -893,7 +814,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
-		mainView.render();
 
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
 			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
@@ -902,9 +822,8 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	protected boolean changeLang() {
-		suggestionOps.cancelDelayedAccept();
-		stopVoiceInput();
-		return new ChangeLanguageDialog(getFinalContext(), this::setLang).show();
+		// The change-language dialog has been removed; fall through to nextLang cycling.
+		return false;
 	}
 
 
@@ -951,7 +870,6 @@ public abstract class CommandHandler extends TypingHandler {
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
 		suggestionOps.setLanguage(mLanguage);
-		mainView.render();
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
 			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
 		}
@@ -1055,27 +973,12 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	public void showCommandPalette() {
-		if (mainView.isCommandPaletteShown()) return;
-
-		suggestionOps.cancelDelayedAccept();
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
-		mInputMode.reset();
-
-		mainView.showCommandPalette();
-		resetStatus();
+		// No-op: there is no UI.
 	}
 
 
 	public boolean hideCommandPalette() {
-		if (!mainView.isCommandPaletteShown()) return false;
-
-		mainView.showKeyboard();
-		if (voiceInputOps.isListening()) {
-			stopVoiceInput();
-		} else {
-			resetStatus();
-		}
-		return true;
+		return false;
 	}
 
 
@@ -1094,9 +997,6 @@ public abstract class CommandHandler extends TypingHandler {
 	private void onOrientationChanged() {
 		width = 0;
 		resetNormalizedDimensions();
-		if (mainView != null) {
-			mainView.onOrientationChanged();
-		}
 	}
 
 
@@ -1105,7 +1005,7 @@ public abstract class CommandHandler extends TypingHandler {
 		String stem = mInputMode.getWordStem();
 		return stem != null && !stem.isEmpty();
 	}
-	public boolean isFnPanelVisible() { return mainView != null && mainView.isFnPanelVisible(); }
+	public boolean isFnPanelVisible() { return false; }
 	public boolean isInputLimited() { return inputType.isLimited(); }
 	public boolean isInputModeABC() { return InputModeKind.isABC(mInputMode); }
 	public boolean isInputModeNumeric() { return InputModeKind.isNumeric(mInputMode); }
@@ -1113,7 +1013,7 @@ public abstract class CommandHandler extends TypingHandler {
 	public boolean isInputTypeDecimal() { return inputType.isDecimal() || inputType.isUnspecifiedNumber(); }
 	public boolean isInputTypeSigned() { return inputType.isSignedNumber() || inputType.isUnspecifiedNumber(); }
 	public boolean isInputTypePhone() { return inputType.isPhoneNumber(); }
-	public boolean isTextEditingActive() { return mainView != null && mainView.isTextEditingPaletteShown(); }
+	public boolean isTextEditingActive() { return false; }
 	public boolean isVoiceInputActive() { return voiceInputOps != null && voiceInputOps.isListening(); }
 	public boolean isVoiceInputMissing() {
 		return !(new VoiceInputOps(this, null, null, null, null)).isAvailable();
@@ -1150,8 +1050,6 @@ public abstract class CommandHandler extends TypingHandler {
 	@Nullable
 	public Language getLanguage() { return mLanguage; }
 
-	public MainView getMainView() { return mainView; }
-
 	public SettingsStore getSettings() { return settings; }
 
 	@Nullable
@@ -1159,8 +1057,8 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	public int getWidth() {
-		if (width == 0 && mainView != null && mainView.getView() != null) {
-			width = mainView.getView().getWidth();
+		if (width == 0) {
+			width = DeviceInfo.getScreenWidth(getApplicationContext());
 		}
 		return width;
 	}
