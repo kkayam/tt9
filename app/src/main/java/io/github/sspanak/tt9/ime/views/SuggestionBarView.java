@@ -23,6 +23,7 @@ import java.util.List;
 
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
+import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 
 /**
  * Suggestion bar that keeps the selected word dead-centered and arranges the remaining
@@ -89,8 +90,9 @@ public class SuggestionBarView extends View {
 			micIcon.setColorFilter(new PorterDuffColorFilter(getColor(context, R.color.keyboard_text, Color.DKGRAY), PorterDuff.Mode.SRC_IN));
 		}
 
-		final float textSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
-		final float selectedTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, SELECTED_TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
+		final float fontScale = new SettingsStore(context).getSuggestionFontScale();
+		final float textSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DP * fontScale, context.getResources().getDisplayMetrics());
+		final float selectedTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, SELECTED_TEXT_SIZE_DP * fontScale, context.getResources().getDisplayMetrics());
 
 		textPaint.setTextSize(textSizePx);
 		textPaint.setTextAlign(Paint.Align.CENTER);

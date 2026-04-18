@@ -38,6 +38,5 @@ public class QuickSwitchLanguagePreference extends SwitchPreferenceCompat {
 		setKey("pref_quick_switch_language");
 		setTitle(R.string.pref_quick_switch_language);
 		setSummary(R.string.pref_quick_switch_language_summary);
-		setVisible(!settings.isMainLayoutStealth());
 	}
 }

@@ -32,13 +32,6 @@
 			android:summary="@string/pref_auto_trim_trailing_space_summary" />
 	</PreferenceCategory>
 
-	<PreferenceCategory android:title="@string/pref_category_keypad_onscreen" android:key="category_virtual_keys">
-		<SwitchPreferenceCompat
-			android:key="pref_haptic_feedback"
-			android:title="@string/pref_haptic_feedback"
-			android:summary="@string/pref_haptic_feedback_summary"/>
-	</PreferenceCategory>
-
 	<PreferenceCategory android:title="@string/pref_category_keypad_hardware">
 		<Preference
 			android:fragment="io.github.sspanak.tt9.preferences.screens.hotkeys.HotkeysScreen"
@@ -46,12 +39,6 @@
 			android:title="@string/pref_category_function_keys" />
 
 		<io.github.sspanak.tt9.preferences.screens.keypad.DropDownKeyPadDebounceTime android:title="@string/pref_hack_key_pad_debounce_time" />
-
-		<SwitchPreferenceCompat
-			android:defaultValue="false"
-			android:key="pref_hardware_key_visual_feedback"
-			android:summary="@string/pref_hardware_key_visual_feedback_summary"
-			android:title="@string/pref_hardware_key_visual_feedback" />
 
 		<io.github.sspanak.tt9.preferences.screens.keypad.SwitchUpsideDownKeys />
 	</PreferenceCategory>

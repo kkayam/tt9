@@ -11,7 +11,6 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.EdgeToEdgeActivity;
 
 public class TutorialDialog extends EdgeToEdgeActivity {
@@ -36,12 +35,6 @@ public class TutorialDialog extends EdgeToEdgeActivity {
 		intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
 
 		return intent;
-	}
-
-	@Override
-	public void finish() {
-		super.finish();
-		new SettingsStore(getApplicationContext()).setTutorialSeen();
 	}
 
 	private void initCloseButton() {

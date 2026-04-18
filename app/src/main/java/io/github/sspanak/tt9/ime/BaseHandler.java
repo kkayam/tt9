@@ -133,7 +133,7 @@ abstract class BaseHandler extends InputMethodService {
 
 
 	protected boolean shouldBeVisible() {
-		return determineInputModeId() != InputMode.MODE_PASSTHROUGH && !settings.isMainLayoutStealth();
+		return determineInputModeId() != InputMode.MODE_PASSTHROUGH;
 	}
 
 

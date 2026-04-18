@@ -2,7 +2,6 @@ package io.github.sspanak.tt9.preferences.screens.keypad;
 
 import androidx.annotation.Nullable;
 import androidx.preference.Preference;
-import androidx.preference.PreferenceCategory;
 
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.preferences.PreferencesActivity;
@@ -20,30 +19,10 @@ public class KeyPadScreen extends BaseScreenFragment {
 
 	@Override
 	protected void onCreate() {
-		createPhysicalKeysSection();
-		createVirtualKeysSection();
-		resetFontSize(true);
-	}
-
-	private void createPhysicalKeysSection() {
 		Preference debounceTime = findPreference(DropDownKeyPadDebounceTime.NAME);
 		if (debounceTime instanceof DropDownKeyPadDebounceTime && activity != null) {
 			((DropDownKeyPadDebounceTime) debounceTime).populate(activity.getSettings()).preview();
 		}
-	}
-
-	protected void createVirtualKeysSection() {
-		if (activity == null) {
-			return;
-		}
-
-		(new ItemHapticFeedback(findPreference(ItemHapticFeedback.NAME), activity.getSettings())).populate().enableClickHandler();
-
-		// hide the entire category when the settings shows no interest in it
-		final boolean isVisible = activity.getSettings().isMainLayoutLarge() || activity.getSettings().isMainLayoutSmall();
-		final PreferenceCategory category = findPreference("category_virtual_keys");
-		if (category != null) {
-			category.setVisible(isVisible);
-		}
+		resetFontSize(true);
 	}
 }

@@ -21,7 +21,6 @@ import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.preferences.screens.BaseScreenFragment;
 import io.github.sspanak.tt9.preferences.screens.appearance.AppearanceScreen;
 import io.github.sspanak.tt9.preferences.screens.deleteWords.DeleteWordsScreen;
-import io.github.sspanak.tt9.preferences.screens.fnKeyOrder.FnKeyOrderScreen;
 import io.github.sspanak.tt9.preferences.screens.hotkeys.HotkeysScreen;
 import io.github.sspanak.tt9.preferences.screens.keypad.KeyPadScreen;
 import io.github.sspanak.tt9.preferences.screens.languageSelection.LanguageSelectionScreen;
@@ -148,7 +147,6 @@ public class PreferencesActivity extends PremiumPreferencesActivity implements P
 		return switch (name) {
 			case AppearanceScreen.NAME -> new AppearanceScreen(this);
 			case DeleteWordsScreen.NAME -> new DeleteWordsScreen(this);
-			case FnKeyOrderScreen.NAME -> new FnKeyOrderScreen(this);
 			case HotkeysScreen.NAME -> new HotkeysScreen(this);
 			case KeyPadScreen.NAME -> new KeyPadScreen(this);
 			case LanguagesScreen.NAME -> new LanguagesScreen(this);

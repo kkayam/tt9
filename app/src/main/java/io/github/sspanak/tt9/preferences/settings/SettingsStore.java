@@ -42,23 +42,9 @@ import io.github.sspanak.tt9.ime.modes.InputModeKind;
 import io.github.sspanak.tt9.languages.Language;
 import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.languages.LanguageKind;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownAlignment;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownBottomPaddingPortrait;
 import io.github.sspanak.tt9.preferences.screens.appearance.DropDownColorScheme;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownKeyHeight;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownLayoutType;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownNumpadFnKeyScale;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownNumpadKeyFontSize;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownNumpadShape;
 import io.github.sspanak.tt9.preferences.screens.appearance.DropDownSettingsFontSize;
 import io.github.sspanak.tt9.preferences.screens.appearance.DropDownSuggestionFontSize;
-import io.github.sspanak.tt9.preferences.screens.appearance.DropDownWidth;
-import io.github.sspanak.tt9.preferences.screens.appearance.SwitchDoubleTapResize;
-import io.github.sspanak.tt9.preferences.screens.appearance.SwitchDragResize;
-import io.github.sspanak.tt9.preferences.screens.appearance.SwitchKeyShadows;
-import io.github.sspanak.tt9.preferences.screens.appearance.SwitchLeftRightArrows;
-import io.github.sspanak.tt9.preferences.screens.appearance.SwitchShowArrowsUpDown;
-import io.github.sspanak.tt9.preferences.screens.fnKeyOrder.FnKeyOrderValidator;
 import io.github.sspanak.tt9.preferences.screens.keypad.DropDownKeyPadDebounceTime;
 import io.github.sspanak.tt9.preferences.screens.keypad.SwitchUpsideDownKeys;
 import io.github.sspanak.tt9.preferences.screens.languages.SwitchAddWordsWithoutConfirmation;
@@ -197,11 +183,6 @@ public static final int COMPOSING_TEXT_RESTART_THRESHOLD = 150; // ms
 
 
 	/************* hack settings *************/
-
-	public int getSuggestionScrollingDelay() {
-		boolean defaultOn = DeviceInfo.noTouchScreen(context) && !DeviceInfo.AT_LEAST_ANDROID_10;
-		return prefs.getBoolean("pref_alternative_suggestion_scrolling", defaultOn) ? 200 : 0;
-	}
 
 	public boolean clearInsets() {
 		return prefs.getBoolean("pref_clear_insets", DeviceInfo.isSonimGen2(context));
@@ -655,17 +636,6 @@ public final static int FONT_SIZE_DEFAULT = 0;
 	public final static float KEY_SHADOW_ELEVATION = 3f;
 	public final static float KEY_SHADOW_TRANSLATION = 2f;
 
-	public final static int LAYOUT_SMALL = 3;
-	// Retained as unused sentinels so layout-conditional code (preference screens, soft-key
-	// behaviour) keeps compiling after the multi-layout system was collapsed to Small only.
-	// getMainViewLayout() always returns LAYOUT_SMALL, so these never match.
-	public final static int LAYOUT_STEALTH = -1;
-	public final static int LAYOUT_TRAY = -2;
-	public final static int LAYOUT_NUMPAD = -3;
-	public final static int LAYOUT_CLASSIC = -4;
-
-	public final static int MIN_WIDTH_PERCENT = 50;
-	private int DEFAULT_WIDTH_LANDSCAPE = 0;
 	private Boolean DEFAULT_QUICK_SWITCH_LANGUAGE = null;
 
 
@@ -675,32 +645,6 @@ public final static int FONT_SIZE_DEFAULT = 0;
 
 	public boolean shouldAskForNotifications() {
 		return DeviceInfo.AT_LEAST_ANDROID_13 && getStringifiedInt("pref_asked_for_notifications_version", 0) < BuildConfig.VERSION_CODE;
-	}
-
-	public int getBottomPaddingPortrait() {
-		return getStringifiedInt(DropDownBottomPaddingPortrait.NAME, DropDownBottomPaddingPortrait.DEFAULT);
-	}
-
-	public int getBottomPaddingPortraitPx() {
-		return Math.round(getBottomPaddingPortrait() * DeviceInfo.getScreenPixelDensity(context));
-	}
-
-	/**
-	 * Samsung devices with Android 15+ SOMETIMES report bottom inset = navigational bar height, but
-	 * but they still move up the IME window up, the Android 14 way. So, if we apply our bottom padding,
-	 * we end up with double padding. To avoid this, we read the reported device bottom inset and
-	 * overwrite the default bottom padding accordingly.
-	 * Safe to call on non-Samsung devices and pre-Android 15 devices. It will just do nothing.
-	 */
-	public void setSamsungBottomPaddingPortrait(int paddingDp) {
-		if (
-			DeviceInfo.IS_SAMSUNG
-			&& DeviceInfo.AT_LEAST_ANDROID_15
-			&& paddingDp > 0
-			&& getStringifiedInt(DropDownBottomPaddingPortrait.NAME, -1) == -1
-		) {
-			getPrefsEditor().putString(DropDownBottomPaddingPortrait.NAME, Integer.toString(paddingDp)).apply();
-		}
 	}
 
 	public void setNotificationsApproved(boolean yes) {
@@ -715,41 +659,12 @@ public final static int FONT_SIZE_DEFAULT = 0;
 		return prefs.getBoolean("pref_status_icon", DeviceInfo.IS_QIN_F21 || !DeviceInfo.noKeyboard(context));
 	}
 
-	public boolean getDragResize() {
-		return prefs.getBoolean(SwitchDragResize.NAME, SwitchDragResize.DEFAULT);
-	}
-
-	public boolean getDoubleTapResize() {
-		return prefs.getBoolean(SwitchDoubleTapResize.NAME, SwitchDoubleTapResize.DEFAULT);
-	}
-
-	public boolean getHapticFeedback() {
-		return prefs.getBoolean("pref_haptic_feedback", true);
-	}
-
-	public int getAlignment() {
-		return getStringifiedInt(DropDownAlignment.NAME, Gravity.CENTER_HORIZONTAL);
-	}
-
-	public void setAlignment(int alignment) {
-		if (alignment != Gravity.CENTER_HORIZONTAL && alignment != Gravity.START && alignment != Gravity.END) {
-			Logger.w(getClass().getSimpleName(), "Ignoring invalid numpad key alignment: " + alignment);
-		}
-
-		getPrefsEditor().putString(DropDownAlignment.NAME, Integer.toString(alignment));
-		getPrefsEditor().apply();
-	}
-
 	public boolean getQuickSwitchLanguage() {
 		if (DEFAULT_QUICK_SWITCH_LANGUAGE == null) {
-			DEFAULT_QUICK_SWITCH_LANGUAGE = !isMainLayoutStealth() && !areEnabledLanguagesMoreThanN(2);
+			DEFAULT_QUICK_SWITCH_LANGUAGE = !areEnabledLanguagesMoreThanN(2);
 		}
 
 		return prefs.getBoolean("pref_quick_switch_language", DEFAULT_QUICK_SWITCH_LANGUAGE);
-	}
-
-	public boolean getKeyShadows() {
-		return prefs.getBoolean(SwitchKeyShadows.NAME, SwitchKeyShadows.DEFAULT);
 	}
 
 	public int getSettingsFontSize() {
@@ -765,188 +680,12 @@ public final static int FONT_SIZE_DEFAULT = 0;
 		return getStringifiedInt(DropDownSuggestionFontSize.NAME, 100);
 	}
 
-	public boolean getSuggestionSmoothScroll() {
-		return prefs.getBoolean("pref_suggestion_smooth_scroll", !DeviceInfo.noTouchScreen(context));
-	}
-
-	public int getDefaultWidthPercent(boolean isPortrait) {
-		if (isPortrait) {
-			return 100;
-		}
-
-		if (DEFAULT_WIDTH_LANDSCAPE > 0) {
-			return DEFAULT_WIDTH_LANDSCAPE;
-		}
-
-		int screenWidth = DeviceInfo.getScreenWidth(context.getApplicationContext());
-		if (screenWidth < 1) {
-			return 100;
-		}
-
-		int stylesMaxWidth = Math.round(context.getResources().getDimension(R.dimen.numpad_max_width));
-		float width = screenWidth < stylesMaxWidth ? 100 : 100f * stylesMaxWidth / screenWidth;
-		width = width < MIN_WIDTH_PERCENT ? MIN_WIDTH_PERCENT : width;
-
-		return DEFAULT_WIDTH_LANDSCAPE = Math.round(width / 5) * 5;
-	}
-
-	public int getWidthPercent(boolean isPortrait) {
-		return getStringifiedInt(DropDownWidth.NAME, getDefaultWidthPercent(isPortrait));
-	}
-
-	public int getMainViewLayout() {
-		return LAYOUT_SMALL;
-	}
-
-	/** No-op retained so the preference screen's layout picker (now removed) still compiles. */
-	public void setPreferredLargeLayout(int layout) {}
-
-	public boolean isMainLayoutLarge() { return false; }
-	public boolean isMainLayoutClassic() { return false; }
-	public boolean isMainLayoutNumpad() { return false; }
-	public boolean isMainLayoutTray() { return false; }
-	public boolean isMainLayoutSmall() { return true; }
-	public boolean isMainLayoutStealth() { return false; }
-
-	/********** SettingsCustomKeyActions **********/
-public static final String CUSTOM_ACTION_KEY_1 = "_1";
-	public static final String CUSTOM_ACTION_KEY_2 = "_2";
-	public static final String CUSTOM_ACTION_KEY_3 = "_3";
-	public static final String CUSTOM_ACTION_KEY_4 = "_4";
-	public static final String CUSTOM_ACTION_KEY_5 = "_5";
-	public static final String CUSTOM_ACTION_KEY_6 = "_6";
-	public static final String CUSTOM_ACTION_KEY_7 = "_7";
-	public static final String CUSTOM_ACTION_KEY_8 = "_8";
-	public static final String CUSTOM_ACTION_KEY_9 = "_9";
-
-	protected static final HashMap<String, String> classicLayoutDefaultsSwipeLeft = new HashMap<>() {{
-		put(CUSTOM_ACTION_KEY_2, CmdEditWord.ID);
-	}};
-
-	protected static final HashMap<String, String> classicLayoutDefaultsSwipeRight = new HashMap<>() {{
-		put(CUSTOM_ACTION_KEY_3, CmdVoiceInput.ID);
-	}};
-
 	public float getMoveCursorWithSpaceThreshold() {
 		return 0;
 	}
 
 	public boolean getMoveCursorWithSpace() {
 		return false;
-	}
-
-	@NonNull
-	public String getSwipeRightCommand(String keySuffix) {
-		if (keySuffix == null || keySuffix.isEmpty() || !classicLayoutDefaultsSwipeRight.containsKey(keySuffix) || !isMainLayoutClassic()) {
-			return NullCommand.ID;
-		}
-
-		String defaultCmd = classicLayoutDefaultsSwipeRight.get(keySuffix);
-		return defaultCmd != null ? defaultCmd : NullCommand.ID;
-	}
-
-	@NonNull
-	public String getSwipeLeftCommand(String keySuffix) {
-		if (keySuffix == null || keySuffix.isEmpty() || !classicLayoutDefaultsSwipeLeft.containsKey(keySuffix) || !isMainLayoutClassic()) {
-			return NullCommand.ID;
-		}
-
-		String defaultCmd = classicLayoutDefaultsSwipeLeft.get(keySuffix);
-		return defaultCmd != null ? defaultCmd : NullCommand.ID;
-	}
-
-	/********** SettingsVirtualNumpad **********/
-public final static int NUMPAD_SHAPE_SQUARE = 0;
-	public final static int NUMPAD_SHAPE_V = 1;
-	public final static int NUMPAD_SHAPE_LONG_SPACE = 2;
-
-	public static final String DEFAULT_LFN_KEY_ORDER = "1234";
-	public static final String DEFAULT_RFN_KEY_ORDER = "5678";
-
-	public boolean getArrowsLeftRight() {
-		return prefs.getBoolean(SwitchLeftRightArrows.NAME, SwitchLeftRightArrows.DEFAULT);
-	}
-
-	public boolean getArrowsUpDown() {
-		return prefs.getBoolean(SwitchShowArrowsUpDown.NAME, SwitchShowArrowsUpDown.DEFAULT);
-	}
-
-	public boolean getHardwareKeyVisualFeedback() {
-		return prefs.getBoolean("pref_hardware_key_visual_feedback", false);
-	}
-
-	@NonNull public String getLfnKeyOrder() {
-		return prefs.getString("pref_lfn_key_order", DEFAULT_LFN_KEY_ORDER);
-	}
-
-	@NonNull public String getRfnKeyOrder() {
-		return prefs.getString("pref_rfn_key_order", DEFAULT_RFN_KEY_ORDER);
-	}
-
-	public FnKeyOrderValidator setFnKeyOrder(String left, String right) {
-		FnKeyOrderValidator validator = new FnKeyOrderValidator(left, right);
-		if (validator.validate()) {
-			getPrefsEditor()
-				.putString("pref_rfn_key_order", right)
-				.putString("pref_lfn_key_order", left)
-				.apply();
-		}
-
-		return validator;
-	}
-
-	public int getNumpadKeyDefaultHeight() {
-		return context.getResources().getDimensionPixelSize(R.dimen.numpad_key_height);
-	}
-
-	public int getNumpadKeyHeight() {
-		return getStringifiedInt(DropDownKeyHeight.NAME, getNumpadKeyDefaultHeight());
-	}
-
-	public float getNumpadFnKeyDefaultScale() {
-		// The simpler getResource.getFloat() requires API 29, so we must get the value manually.
-		try {
-			TypedValue outValue = new TypedValue();
-			context.getResources().getValue(R.dimen.numpad_key_fn_layout_weight, outValue, true);
-			return outValue.getFloat();
-		} catch (Exception e) {
-			return 0.625f;
-		}
-	}
-
-	public float getNumpadFnKeyScale() {
-		return getStringifiedFloat(DropDownNumpadFnKeyScale.NAME, getNumpadFnKeyDefaultScale());
-	}
-
-	public int getNumpadKeyFontSizePercent() {
-		return isMainLayoutLarge() ? getStringifiedInt(DropDownNumpadKeyFontSize.NAME, 100) : 100;
-	}
-
-	public int getNumpadShape() {
-		return getStringifiedInt(DropDownNumpadShape.NAME, NUMPAD_SHAPE_SQUARE);
-	}
-
-	public boolean isNumpadShapeLongSpace() { return getNumpadShape() == NUMPAD_SHAPE_LONG_SPACE; }
-	public boolean isNumpadShapeV() { return getNumpadShape() == NUMPAD_SHAPE_V; }
-
-
-	public boolean getTutorialSeen() {
-		if (isMainLayoutClassic()) {
-			return prefs.getBoolean("pref_tutorial_classic_seen", false);
-		} else if (isMainLayoutNumpad()) {
-			return prefs.getBoolean("pref_tutorial_fn_keys_seen", false);
-		} else {
-			return false;
-		}
-	}
-
-
-	public void setTutorialSeen() {
-		if (isMainLayoutClassic()) {
-			getPrefsEditor().putBoolean("pref_tutorial_classic_seen", true).apply();
-		} else if (isMainLayoutNumpad()) {
-			getPrefsEditor().putBoolean("pref_tutorial_fn_keys_seen", true).apply();
-		}
 	}
 
 	/********** SettingsHotkeys **********/
@@ -976,7 +715,6 @@ private static final String HOTKEY_VERSION = "hotkeys_v7";
 		if (
 			KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_CLEAR)
 			|| KeyCharacterMap.deviceHasKey(KeyEvent.KEYCODE_DEL)
-			|| isMainLayoutLarge()
 		) {
 			getPrefsEditor().putString(CmdBackspace.ID, String.valueOf(KeyEvent.KEYCODE_UNKNOWN));
 		} else {

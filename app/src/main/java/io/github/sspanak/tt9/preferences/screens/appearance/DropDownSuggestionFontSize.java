@@ -9,7 +9,7 @@ import androidx.annotation.Nullable;
 import io.github.sspanak.tt9.preferences.custom.EnhancedDropDownPreference;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 
-public class DropDownSuggestionFontSize extends EnhancedDropDownPreference implements ItemLayoutChangeReactive{
+public class DropDownSuggestionFontSize extends EnhancedDropDownPreference {
 	public static final String NAME = "pref_suggestion_font_size";
 
 	public DropDownSuggestionFontSize(@NonNull Context context) { super(context); }
@@ -21,18 +21,12 @@ public class DropDownSuggestionFontSize extends EnhancedDropDownPreference imple
 	public EnhancedDropDownPreference populate(@NonNull SettingsStore settings) {
 		commitPercentRange(70, 150, 5);
 		setValue(String.valueOf(settings.getSuggestionFontSizePercent()));
-		onLayoutChange(settings.getMainViewLayout());
-
+		setIconSpaceReserved(false);
 		return this;
 	}
 
 	@Override
 	protected String getName() {
 		return NAME;
-	}
-
-	public void onLayoutChange(int mainViewLayout) {
-		setVisible(mainViewLayout != SettingsStore.LAYOUT_STEALTH);
-		setIconSpaceReserved(false);
 	}
 }

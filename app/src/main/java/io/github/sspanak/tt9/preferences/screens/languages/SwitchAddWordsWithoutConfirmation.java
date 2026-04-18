@@ -8,7 +8,6 @@ import androidx.annotation.Nullable;
 import androidx.preference.SwitchPreferenceCompat;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 
 public class SwitchAddWordsWithoutConfirmation extends SwitchPreferenceCompat {
 	public static final String NAME = "add_word_no_confirmation";
@@ -36,6 +35,5 @@ public class SwitchAddWordsWithoutConfirmation extends SwitchPreferenceCompat {
 	private void init(Context context) {
 		setKey(NAME);
 		setTitle(R.string.add_word_no_confirmation);
-		setVisible(!new SettingsStore(context).isMainLayoutStealth());
 	}
 }

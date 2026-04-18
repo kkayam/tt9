@@ -65,8 +65,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	// Main view / orientation
 	private OrientationListener orientationListener;
-	private float normalizedWidth = -1;
-	private float normalizedHeight = -1;
 	private int width = 0;
 
 
@@ -99,7 +97,6 @@ public abstract class CommandHandler extends TypingHandler {
 	protected boolean onStart(EditorInfo field, boolean restarting) {
 		detectRTL();
 		suggestionOps.setLanguage(LanguageCollection.getLanguage(settings.getInputLanguage()));
-		resetNormalizedDimensions();
 		return super.onStart(field, restarting);
 	}
 
@@ -234,7 +231,7 @@ public abstract class CommandHandler extends TypingHandler {
 			return Ternary.TRUE;
 		}
 
-		return settings.isMainLayoutLarge() ? Ternary.ALTERNATIVE : Ternary.FALSE;
+		return Ternary.FALSE;
 	}
 
 
@@ -461,10 +458,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 			getDisplayTextCase(session.language, session.mode.getTextCase());
 			setStatusIcon(session.mode, session.language);
-
-			if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
-				UI.toastShortSingle(this, session.mode.getClass().getSimpleName(), session.mode.toString());
-			}
 
 			getFinalContext().pushModeInfoToBar();
 		});
@@ -758,10 +751,6 @@ public abstract class CommandHandler extends TypingHandler {
 		getDisplayTextCase(session.language, session.mode.getTextCase());
 		setStatusIcon(session.mode, session.language);
 
-		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
-			UI.toastShortSingle(this, session.mode.getClass().getSimpleName(), session.mode.toString());
-		}
-
 		getFinalContext().pushModeInfoToBar();
 	}
 
@@ -815,9 +804,6 @@ public abstract class CommandHandler extends TypingHandler {
 		getDisplayTextCase(session.language, session.mode.getTextCase());
 		setStatusIcon(session.mode, session.language);
 		suggestionOps.setLanguage(session.language);
-		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
-			UI.toastShortSingle(this, session.mode.getClass().getSimpleName(), session.mode.toString());
-		}
 		getFinalContext().pushModeInfoToBar();
 	}
 
@@ -906,7 +892,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	private void onOrientationChanged() {
 		width = 0;
-		resetNormalizedDimensions();
 	}
 
 
@@ -974,24 +959,4 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	public float getNormalizedWidth() {
-		if (normalizedWidth < 0) {
-			normalizedWidth = settings.getWidthPercent(!DeviceInfo.isLandscapeOrientation(this)) / 100f;
-		}
-		return normalizedWidth;
-	}
-
-
-	public float getNormalizedHeight() {
-		if (normalizedHeight < 0) {
-			normalizedHeight = (float) settings.getNumpadKeyHeight() / (float) settings.getNumpadKeyDefaultHeight();
-		}
-		return normalizedHeight;
-	}
-
-
-	private void resetNormalizedDimensions() {
-		normalizedWidth = -1;
-		normalizedHeight = -1;
-	}
 }

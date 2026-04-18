@@ -273,13 +273,6 @@ public class AppHacks {
 
 
 	private void resetMessengerPadding(@NonNull InputMethodService ims, @NonNull SettingsStore settings, @Nullable EditorInfo field) {
-		// below we adjust the padding of MainSmall, so save some resources by not doing anything if
-		// another layout is used.
-		if (!settings.isMainLayoutSmall()) {
-			settings.setMessengerReplyExtraPadding(false);
-			return;
-		}
-
 		final InputType newInputType = new InputType(ims, field);
 		if (newInputType.notMessenger()) {
 			settings.setMessengerReplyExtraPadding(false);
