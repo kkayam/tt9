@@ -486,13 +486,6 @@ public abstract class TypingHandler extends BaseHandler {
 			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
 		}
 
-		// Space finishes the current word in fallback mode, restoring predictive.
-		// (Dictionary auto-add for space lives in onText, which is what the normal space path
-		// actually routes through; this branch only runs for hold-0 / numeric-mode edge cases.)
-		if (key == 0 && surroundingChars[0] != null && !surroundingChars[0].isEmpty() && session.inPredictiveFallback) {
-			exitPredictiveFallback();
-		}
-
 		// Auto-adjust the text case before each word/char, if the InputMode supports it.
 		session.mode.determineNextWordTextCase(surroundingChars[0], key);
 
@@ -568,6 +561,11 @@ public abstract class TypingHandler extends BaseHandler {
 		// any in-progress word does.
 		if (Characters.getSpace(session.language).equals(text)) {
 			autoAddFinishedWord(surroundingChars[0]);
+			// A space finishes the custom word the user was typing letter-by-letter, so drop
+			// back to predictive mode for the next word.
+			if (session.inPredictiveFallback) {
+				exitPredictiveFallback();
+			}
 			showNextWordPrediction(lastWord);
 		}
 
