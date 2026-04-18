@@ -13,7 +13,6 @@ import java.util.function.Consumer;
 import io.github.sspanak.tt9.db.DataStore;
 import io.github.sspanak.tt9.db.entities.CustomWord;
 import io.github.sspanak.tt9.preferences.items.SearchPreference;
-import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.util.Logger;
 
 public class PreferenceSearchWords extends SearchPreference {
@@ -47,9 +46,6 @@ public class PreferenceSearchWords extends SearchPreference {
 
 		if (onWords == null) {
 			Logger.w(LOG_TAG, "No handler set for the word change event.");
-		} else if (lastSearchTerm.isEmpty()) {
-			DataStore.countCustomWords(onTotalWords);
-			DataStore.getCustomWords(onWords, lastSearchTerm, SettingsStore.CUSTOM_WORDS_SEARCH_RESULTS_MAX);
 		} else {
 			DataStore.countCustomWords(onTotalWords);
 			DataStore.getCustomWords(onWords, lastSearchTerm, -1);

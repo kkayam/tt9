@@ -594,9 +594,14 @@ public abstract class TypingHandler extends BaseHandler {
 			? trimmed.substring(lastSpaceIdx + space.length())
 			: trimmed;
 
-		if (!finishedWord.isEmpty()) {
-			DataStore.putSilently(session.language, finishedWord);
+		// Skip empty, purely-numeric, or punctuation-bearing tokens — the custom words table
+		// only stores words that match {@link CustomWord}'s invariants, and a junk entry would
+		// later abort any full scan of the table.
+		if (finishedWord.isEmpty() || io.github.sspanak.tt9.util.TextTools.containsPunctuation(finishedWord) || new io.github.sspanak.tt9.util.Text(finishedWord).isNumeric()) {
+			return;
 		}
+
+		DataStore.putSilently(session.language, finishedWord);
 	}
 
 

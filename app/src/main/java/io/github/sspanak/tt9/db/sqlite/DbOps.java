@@ -131,11 +131,16 @@ public class DbOps {
 
 		try (Cursor cursor = db.query(Tables.CUSTOM_WORDS, select, where, whereArgs, null, null, orderBy, limit)) {
 			while (cursor.moveToNext()) {
-				words.add(new CustomWord(
-					cursor.getString(0),
-					cursor.getString(1),
-					(int) cursor.getLong(2)
-				));
+				try {
+					words.add(new CustomWord(
+						cursor.getString(0),
+						cursor.getString(1),
+						(int) cursor.getLong(2)
+					));
+				} catch (IllegalArgumentException ignored) {
+					// Skip rows that violate the CustomWord invariants (e.g. legacy/junk entries
+					// with punctuation). Without this, one bad row would abort the entire scan.
+				}
 			}
 		}
 
