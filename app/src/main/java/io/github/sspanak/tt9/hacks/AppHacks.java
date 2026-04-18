@@ -234,7 +234,7 @@ public class AppHacks {
 	 */
 	public boolean acceptComposingTextOnCursorReset(@NonNull InputMode inputMode, @NonNull SuggestionOps suggestionOps, @Nullable TextField textField) {
 		if (!isComposingCausingRestarts() && textField != null && textField.isEmpty() && !(inputMode.getSuggestions().isEmpty() && suggestionOps.isEmpty())) {
-			inputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
+			inputMode.onAcceptSuggestion(suggestionOps.acceptAndClear(false));
 			inputMode.reset();
 			return true;
 		}

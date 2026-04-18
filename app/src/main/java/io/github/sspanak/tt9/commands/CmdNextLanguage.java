@@ -12,6 +12,6 @@ public class CmdNextLanguage implements Command {
 	public int getName() { return R.string.function_next_language; }
 
 	public boolean run(@Nullable TraditionalT9 tt9) {
-		return tt9 != null && tt9.onKeyNextLanguage(false);
+		return tt9 != null && tt9.onKeyNextLanguage().run();
 	}
 }

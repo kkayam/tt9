@@ -29,6 +29,6 @@ public class CmdFilterSuggestions implements Command {
 	}
 
 	public boolean run(@Nullable TraditionalT9 tt9, boolean repeat) {
-		return tt9 != null && tt9.onKeyFilterSuggestions(false, repeat);
+		return tt9 != null && tt9.onKeyFilterSuggestions(repeat).run();
 	}
 }

@@ -31,7 +31,7 @@ public class CmdEditWord implements Command {
 
 	@Override
 	public boolean run(@Nullable TraditionalT9 tt9) {
-		return tt9 != null && tt9.onKeyEditWord(false);
+		return tt9 != null && tt9.onKeyEditWord().run();
 	}
 
 

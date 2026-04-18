@@ -17,7 +17,7 @@ public class CmdCommandPalette implements Command {
 		if (tt9 == null) {
 			return false;
 		}
-		tt9.onKeyCommandPalette(false);
+		tt9.onKeyCommandPalette().run();
 		return true;
 	}
 }

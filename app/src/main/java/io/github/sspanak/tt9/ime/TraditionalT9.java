@@ -46,7 +46,7 @@ public class TraditionalT9 extends CommandHandler {
 
 	@Override
 	public View onCreateInputView() {
-		suggestionOps.set(mInputMode.getSuggestions(), mInputMode.containsGeneratedSuggestions());
+		suggestionOps.set(session.mode.getSuggestions(), session.mode.containsGeneratedSuggestions());
 
 		if (suggestionBar != null) {
 			suggestionBar.detach();
@@ -60,8 +60,8 @@ public class TraditionalT9 extends CommandHandler {
 
 	public void pushModeInfoToBar() {
 		if (suggestionBar == null) return;
-		final String rawMode = mInputMode != null ? mInputMode.toString() : "";
-		final String mode = applyTextCase(rawMode, displayTextCase);
+		final String rawMode = session.mode != null ? session.mode.toString() : "";
+		final String mode = applyTextCase(rawMode, session.displayTextCase);
 		suggestionBar.setModeInfo(mode, null);
 	}
 
@@ -175,20 +175,20 @@ public class TraditionalT9 extends CommandHandler {
 			asyncInitThread = null;
 		}
 
-		appHacks.onBeforeStart(this, settings, mLanguage, field, mInputMode, suggestionOps, restarting);
+		appHacks.onBeforeStart(this, settings, session.language, field, session.mode, suggestionOps, restarting);
 
 		if (isDead || !super.onStart(field, restarting)) {
 			getDisplayTextCase();
-			setStatusIcon(mInputMode, mLanguage);
+			setStatusIcon(session.mode, session.language);
 			return false;
 		}
 
-		if (InputModeKind.isPassthrough(mInputMode)) {
+		if (InputModeKind.isPassthrough(session.mode)) {
 			onStop();
 		}	else {
 			backgroundTasks.removeCallbacksAndMessages(null);
 			settings.setDonationsVisible(true);
-			initUi(mInputMode);
+			initUi(session.mode);
 			pushModeInfoToBar();
 		}
 
@@ -206,7 +206,7 @@ public class TraditionalT9 extends CommandHandler {
 		}
 
 		if (!newInputType.isUs()) {
-			DictionaryLoader.autoLoad(this, settings, mLanguage);
+			DictionaryLoader.autoLoad(this, settings, session.language);
 		}
 
 		if (onAfterStartText.length() > 0) {
@@ -245,12 +245,12 @@ public class TraditionalT9 extends CommandHandler {
 	protected void onFinishTyping() {
 		super.onFinishTyping();
 		getDisplayTextCase();
-		setStatusIcon(mInputMode, mLanguage);
+		setStatusIcon(session.mode, session.language);
 	}
 
 
 	private void askForNotifications() {
-		if (settings.shouldAskForNotifications() && !InputModeKind.isPassthrough(mInputMode) && !inputType.isUs()) {
+		if (settings.shouldAskForNotifications() && !InputModeKind.isPassthrough(session.mode) && !inputType.isUs()) {
 			settings.setNotificationsApproved(false);
 			RequestPermissionDialog.show(this, Manifest.permission.POST_NOTIFICATIONS);
 		}
@@ -264,7 +264,7 @@ public class TraditionalT9 extends CommandHandler {
 	private void startHeartbeatCheck() {
 		if (!SystemSettings.isTT9Selected(this)) {
 			onZombie();
-		} else if (!isDead && !InputModeKind.isPassthrough(mInputMode)) {
+		} else if (!isDead && !InputModeKind.isPassthrough(session.mode)) {
 			heartbeatDetector.postDelayed(this::startHeartbeatCheck, SettingsStore.ZOMBIE_HEARTBEAT_INTERVAL);
 			Logger.v(LOG_TAG, "===> Heart is beating");
 		}
@@ -353,7 +353,7 @@ public class TraditionalT9 extends CommandHandler {
 
 	@Override
 	protected boolean onNumber(int key, boolean hold, int repeat) {
-		if (InputModeKind.isPredictive(mInputMode) && DictionaryLoader.autoLoad(this, settings, mLanguage)) {
+		if (InputModeKind.isPredictive(session.mode) && DictionaryLoader.autoLoad(this, settings, session.language)) {
 			return true;
 		}
 		return super.onNumber(key, hold, repeat);

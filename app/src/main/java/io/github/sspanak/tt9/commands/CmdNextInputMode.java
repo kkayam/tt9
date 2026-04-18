@@ -21,6 +21,6 @@ public class CmdNextInputMode implements Command {
 	}
 
 	public boolean run(@Nullable TraditionalT9 tt9) {
-		return tt9 != null && tt9.onKeyNextInputMode(false);
+		return tt9 != null && tt9.onKeyNextInputMode().run();
 	}
 }

@@ -9,6 +9,6 @@ public class CmdSuggestionPrevious implements Command {
 	public int getName() { return R.string.function_previous_suggestion; }
 
 	public boolean run(io.github.sspanak.tt9.ime.TraditionalT9 tt9) {
-		return tt9 != null && tt9.onKeyScrollSuggestion(false, true);
+		return tt9 != null && tt9.onKeyScrollSuggestion(true).run();
 	}
 }

@@ -9,6 +9,6 @@ public class CmdFilterClear implements Command {
 	public int getName() { return R.string.function_filter_clear; }
 
 	public boolean run(io.github.sspanak.tt9.ime.TraditionalT9 tt9) {
-		return tt9 != null && tt9.onKeyFilterClear(false);
+		return tt9 != null && tt9.onKeyFilterClear().run();
 	}
 }

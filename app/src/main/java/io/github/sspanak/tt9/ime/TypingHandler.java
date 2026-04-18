@@ -54,20 +54,8 @@ public abstract class TypingHandler extends BaseHandler {
 	@Nullable private Handler shiftStateDebounceHandler;
 	@Nullable private Handler suggestionHandler;
 
-	// input
-	@NonNull protected ArrayList<Integer> allowedInputModes = new ArrayList<>();
-	@NonNull protected InputMode mInputMode = InputMode.getInstance(null, null, null, null, InputMode.MODE_PASSTHROUGH);
-
-	// language
-	protected ArrayList<Integer> mEnabledLanguages;
-	protected Language mLanguage;
-
-	// predictive-to-manual fallback
-	protected boolean inPredictiveFallback = false;
-
-	// True when the suggestion bar is showing a next-word prediction (from word pairs) that
-	// hasn't been accepted yet. Space/OK accepts it; any other action clears it.
-	protected boolean hasPendingNextWordPrediction = false;
+	// Mode, language, text-case flags and per-field booleans now live in {@link #session}
+	// (see {@link TypingSession}). The fields below are only read/written through session.*
 
 
 	protected void initSuggestionOps() {
@@ -76,12 +64,12 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	protected boolean shouldBeOff() {
-		return getCurrentInputConnection() == null || InputModeKind.isPassthrough(mInputMode);
+		return getCurrentInputConnection() == null || InputModeKind.isPassthrough(session.mode);
 	}
 
 
 	protected boolean isInPredictiveFallback() {
-		return inPredictiveFallback;
+		return session.inPredictiveFallback;
 	}
 
 
@@ -91,17 +79,17 @@ public abstract class TypingHandler extends BaseHandler {
 	 * Does not save the mode change to settings.
 	 */
 	protected void enterPredictiveFallback(int initialChars) {
-		if (inPredictiveFallback || !mLanguage.hasABC()) {
+		if (session.inPredictiveFallback || !session.language.hasABC()) {
 			return;
 		}
 
-		inPredictiveFallback = true;
+		session.inPredictiveFallback = true;
 
-		mInputMode = InputMode.getInstance(settings, mLanguage, inputType, textField, InputMode.MODE_ABC);
+		session.mode = InputMode.getInstance(settings, session.language, inputType, textField, InputMode.MODE_ABC);
 		determineTextCase();
 
-		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
-		setStatusIcon(mInputMode, mLanguage);
+		getDisplayTextCase(session.language, session.mode.getTextCase());
+		setStatusIcon(session.mode, session.language);
 		getFinalContext().pushModeInfoToBar();
 	}
 
@@ -111,17 +99,17 @@ public abstract class TypingHandler extends BaseHandler {
 	 * Restores predictive mode after a temporary ABC fallback.
 	 */
 	protected void exitPredictiveFallback() {
-		if (!inPredictiveFallback) {
+		if (!session.inPredictiveFallback) {
 			return;
 		}
 
-		inPredictiveFallback = false;
+		session.inPredictiveFallback = false;
 
-		mInputMode = InputMode.getInstance(settings, mLanguage, inputType, textField, InputMode.MODE_PREDICTIVE);
+		session.mode = InputMode.getInstance(settings, session.language, inputType, textField, InputMode.MODE_PREDICTIVE);
 		determineTextCase();
 
-		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
-		setStatusIcon(mInputMode, mLanguage);
+		getDisplayTextCase(session.language, session.mode.getTextCase());
+		setStatusIcon(session.mode, session.language);
 		getFinalContext().pushModeInfoToBar();
 	}
 
@@ -193,11 +181,13 @@ public abstract class TypingHandler extends BaseHandler {
 			Key.setHandled(KeyEvent.KEYCODE_BACK, false);
 		}
 
-		return
-			Key.setHandled(KeyEvent.KEYCODE_ENTER, Key.isOK(keyCode) && onOK())
-			|| handleHotkey(keyCode, true, false, true)
-			|| handleHotkey(keyCode, false, keyRepeatCounter + 1 > 0, true)
-			|| Key.isPoundOrStar(keyCode) && onText(String.valueOf((char) event.getUnicodeChar()), true)
+		if (Key.setHandled(KeyEvent.KEYCODE_ENTER, Key.isOK(keyCode) && onOK())) return true;
+
+		// Validate hotkey intents — just check acceptance; the side effect runs on key up.
+		if (hotkeyIntent(keyCode, true, false).accepted()) return true;
+		if (hotkeyIntent(keyCode, false, keyRepeatCounter + 1 > 0).accepted()) return true;
+
+		return (Key.isPoundOrStar(keyCode) && onText(String.valueOf((char) event.getUnicodeChar()), true))
 			|| super.onKeyDown(keyCode, event);
 	}
 
@@ -228,7 +218,7 @@ public abstract class TypingHandler extends BaseHandler {
 			lastKeyCode = 0;
 		}
 
-		if (handleHotkey(keyCode, true, false, false)) {
+		if (hotkeyIntent(keyCode, true, false).run()) {
 			return true;
 		}
 
@@ -275,16 +265,15 @@ public abstract class TypingHandler extends BaseHandler {
 			return Key.isHandledInSuper(keyCode) ? super.onKeyUp(keyCode, event) : Key.isHandled(keyCode);
 		}
 
-		return
-			(Key.isOK(keyCode) && Key.isHandled(KeyEvent.KEYCODE_ENTER))
-			|| handleHotkey(keyCode, false, keyRepeatCounter > 0, false)
-			|| Key.isPoundOrStar(keyCode) && onText(String.valueOf((char) event.getUnicodeChar()), false)
+		if (Key.isOK(keyCode) && Key.isHandled(KeyEvent.KEYCODE_ENTER)) return true;
+		if (hotkeyIntent(keyCode, false, keyRepeatCounter > 0).run()) return true;
+		return (Key.isPoundOrStar(keyCode) && onText(String.valueOf((char) event.getUnicodeChar()), false))
 			|| super.onKeyUp(keyCode, event);
 	}
 
 
-	private boolean handleHotkey(int keyCode, boolean hold, boolean repeat, boolean validateOnly) {
-		return onHotkey(keyCode * (hold ? -1 : 1), repeat, validateOnly);
+	private KeyIntent hotkeyIntent(int keyCode, boolean hold, boolean repeat) {
+		return onHotkey(keyCode * (hold ? -1 : 1), repeat);
 	}
 
 
@@ -340,18 +329,18 @@ public abstract class TypingHandler extends BaseHandler {
 
 		// ignore multiple calls for the same field, caused by requestShowSelf() -> showWindow(),
 		// or weirdly functioning apps, such as the Qin SMS app
-		if (restart && !languageChanged && mInputMode.getId() == determineInputModeId()) {
+		if (restart && !languageChanged && session.mode.getId() == determineInputModeId()) {
 			return false;
 		}
-		inPredictiveFallback = false;
-		settings.setDefaultCharOrder(mLanguage, false);
+		session.inPredictiveFallback = false;
+		settings.setDefaultCharOrder(session.language, false);
 		resetKeyRepeat();
-		mInputMode = determineInputMode();
+		session.mode = determineInputMode();
 		determineTextCase();
 		suggestionOps.set(null);
 
 		// don't use surroundingText cache on start up
-		final String[] surroundingText = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
+		final String[] surroundingText = textField.getSurroundingStringForAutoAssistance(settings, session.mode);
 		updateShiftState(surroundingText[0], false, false);
 
 		return true;
@@ -375,15 +364,15 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	protected void validateLanguages() {
-		mEnabledLanguages = InputModeValidator.validateEnabledLanguages(mEnabledLanguages);
-		mLanguage = InputModeValidator.validateLanguage(mLanguage, mEnabledLanguages);
-		settings.saveInputLanguage(mLanguage.getId());
-		settings.saveEnabledLanguageIds(mEnabledLanguages);
+		session.enabledLanguages = InputModeValidator.validateEnabledLanguages(session.enabledLanguages);
+		session.language = InputModeValidator.validateLanguage(session.language, session.enabledLanguages);
+		settings.saveInputLanguage(session.language.getId());
+		settings.saveEnabledLanguageIds(session.enabledLanguages);
 	}
 
 
 	protected void onFinishTyping() {
-		inPredictiveFallback = false;
+		session.inPredictiveFallback = false;
 		if (shiftStateDebounceHandler != null) {
 			shiftStateDebounceHandler.removeCallbacksAndMessages(null);
 			shiftStateDebounceHandler = null;
@@ -393,7 +382,7 @@ public abstract class TypingHandler extends BaseHandler {
 			suggestionHandler = null;
 		}
 		suggestionOps.cancelDelayedAccept();
-		mInputMode = InputMode.getInstance(null, null, null, null, InputMode.MODE_PASSTHROUGH);
+		session.mode = InputMode.getInstance(null, null, null, null, InputMode.MODE_PASSTHROUGH);
 		setInputField(null);
 	}
 
@@ -402,12 +391,12 @@ public abstract class TypingHandler extends BaseHandler {
 	public boolean onBackspace(int repeat) {
 		// Dialer fields seem to handle backspace on their own and we must ignore it,
 		// otherwise, keyDown race condition occur for all keys.
-		if (InputModeKind.isPassthrough(mInputMode)) {
+		if (InputModeKind.isPassthrough(session.mode)) {
 			return false;
 		}
 
-		if (appHacks.onBackspace(settings, mInputMode)) {
-			mInputMode.reset();
+		if (appHacks.onBackspace(settings, session.mode)) {
+			session.mode.reset();
 			return false;
 		}
 
@@ -419,27 +408,27 @@ public abstract class TypingHandler extends BaseHandler {
 		}
 
 		// Track whether the user is mid-letter-selection (ABC mode) before backspace modifies state
-		boolean wasMidLetterSelection = inPredictiveFallback && mInputMode.isTyping();
+		boolean wasMidLetterSelection = session.inPredictiveFallback && session.mode.isTyping();
 
-		mInputMode.beforeDeleteText();
+		session.mode.beforeDeleteText();
 
 		// load new words only if there is no selected text, because it would be confusing
-		if (repeat == 0 && mInputMode.onBackspace() && textSelection.isEmpty()) {
-			final Runnable onLoad = InputModeKind.isRecomposing(mInputMode) ? null : () -> recompose(repeat, false);
+		if (repeat == 0 && session.mode.onBackspace() && textSelection.isEmpty()) {
+			final Runnable onLoad = InputModeKind.isRecomposing(session.mode) ? null : () -> recompose(repeat, false);
 			getSuggestions(0, null, onLoad);
 		} else {
-			suggestionOps.commitCurrent(false, true);
-			mInputMode.reset();
+			suggestionOps.acceptAndClear(false);
+			session.mode.reset();
 			deleteText(settings.getBackspaceAcceleration() && repeat > 0);
-			updateShiftStateDebounced(null, mInputMode.noSuggestions(), false); // backspace may change the text too much, so no beforeCursor cache for now
+			updateShiftStateDebounced(null, session.mode.noSuggestions(), false); // backspace may change the text too much, so no beforeCursor cache for now
 			recompose(repeat, !textSelection.isEmpty());
 		}
 
 		// In predictive fallback (ABC mode): exit when the cursor is at the start of the field
 		// or immediately after a space — meaning the entire custom word has been erased.
-		if (inPredictiveFallback && !wasMidLetterSelection) {
+		if (session.inPredictiveFallback && !wasMidLetterSelection) {
 			String beforeCursor = textField.getStringBeforeCursor(1);
-			if (beforeCursor.isEmpty() || beforeCursor.equals(Characters.getSpace(mLanguage))) {
+			if (beforeCursor.isEmpty() || beforeCursor.equals(Characters.getSpace(session.language))) {
 				exitPredictiveFallback();
 			}
 		}
@@ -464,16 +453,16 @@ public abstract class TypingHandler extends BaseHandler {
 		// Key 0 is pure Space in all non-numeric modes. No character cycling —
 		// onText commits any in-progress word (or pending prediction) and types the
 		// language-appropriate space. onText then shows the next-word prediction, if any.
-		if (key == 0 && !hold && !InputModeKind.isNumeric(mInputMode)) {
-			onText(Characters.getSpace(mLanguage), false);
+		if (key == 0 && !hold && !InputModeKind.isNumeric(session.mode)) {
+			onText(Characters.getSpace(session.language), false);
 			return true;
 		}
 
 		// User is typing a different word — cancel any pending next-word prediction so
 		// it doesn't leak into the new word.
-		hasPendingNextWordPrediction = false;
+		session.hasPendingNextWordPrediction = false;
 
-		String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
+		String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, session.mode);
 		String lastWord = null;
 
 		// Automatically accept the previous word, when the next one is a space or punctuation,
@@ -485,44 +474,44 @@ public abstract class TypingHandler extends BaseHandler {
 		// In ABC fallback mode, key 0 (space) must commit the in-progress letter before
 		// the mode resets it. ModeABC's 3-arg shouldAcceptPreviousSuggestion returns false,
 		// so we handle it explicitly here.
-		if (inPredictiveFallback && key == 0 && !suggestionOps.isEmpty()) {
-			lastWord = suggestionOps.acceptIncompleteAndKeepList();
-			mInputMode.onAcceptSuggestion(lastWord);
+		if (session.inPredictiveFallback && key == 0 && !suggestionOps.isEmpty()) {
+			lastWord = suggestionOps.acceptAndKeep(false);
+			session.mode.onAcceptSuggestion(lastWord);
 			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
-		} else if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent(), key, hold)) {
+		} else if (session.mode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent(), key, hold)) {
 			// WARNING! Ensure the code after "acceptIncompleteAndKeepList()" does not depend on
 			// the suggestions in SuggestionOps, since we don't clear that list.
-			lastWord = suggestionOps.acceptIncompleteAndKeepList();
-			mInputMode.onAcceptSuggestion(lastWord);
+			lastWord = suggestionOps.acceptAndKeep(false);
+			session.mode.onAcceptSuggestion(lastWord);
 			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
 		}
 
 		// Auto-add unknown words to dictionary when spacebar (key 0) finishes a word
 		if (key == 0 && surroundingChars[0] != null && !surroundingChars[0].isEmpty()) {
-			String space = Characters.getSpace(mLanguage);
+			String space = Characters.getSpace(session.language);
 			int spaceIdx = surroundingChars[0].lastIndexOf(space);
 			String finishedWord = spaceIdx >= 0 ? surroundingChars[0].substring(spaceIdx + space.length()) : surroundingChars[0];
 			if (!finishedWord.isEmpty()) {
-				DataStore.putSilently(mLanguage, finishedWord);
+				DataStore.putSilently(session.language, finishedWord);
 			}
 			
 			// Space finishes the current word in fallback mode, restoring predictive
-			if (inPredictiveFallback) {
+			if (session.inPredictiveFallback) {
 				exitPredictiveFallback();
 			}
 		}
 
 		// Auto-adjust the text case before each word/char, if the InputMode supports it.
-		mInputMode.determineNextWordTextCase(surroundingChars[0], key);
+		session.mode.determineNextWordTextCase(surroundingChars[0], key);
 
-		if (!mInputMode.onNumber(key, hold, repeat, surroundingChars)) {
+		if (!session.mode.onNumber(key, hold, repeat, surroundingChars)) {
 			forceShowWindow();
 			return false;
 		}
 
-		if (mInputMode.shouldSelectNextSuggestion() && !mInputMode.noSuggestions()) {
+		if (session.mode.shouldSelectNextSuggestion() && !session.mode.noSuggestions()) {
 			scrollSuggestions(false);
-			suggestionOps.scheduleDelayedAccept(mInputMode.getAutoAcceptTimeout());
+			suggestionOps.scheduleDelayedAccept(session.mode.getAutoAcceptTimeout());
 		} else {
 			getSuggestions(Math.random(), null, null);
 		}
@@ -532,7 +521,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	public boolean onText(String text, boolean validateOnly) {
-		if (mInputMode.shouldIgnoreText(text)) {
+		if (session.mode.shouldIgnoreText(text)) {
 			return false;
 		}
 
@@ -548,44 +537,44 @@ public abstract class TypingHandler extends BaseHandler {
 		// text). Accepting it = typing it as real text via acceptCurrent, which calls
 		// setComposingText + finishComposingText under the hood.
 		String lastWord;
-		if (hasPendingNextWordPrediction && !suggestionOps.isEmpty()) {
-			lastWord = suggestionOps.acceptCurrent();
+		if (session.hasPendingNextWordPrediction && !suggestionOps.isEmpty()) {
+			lastWord = suggestionOps.acceptAndClear(true);
 		} else {
-			lastWord = suggestionOps.acceptIncomplete();
+			lastWord = suggestionOps.acceptAndClear(false);
 		}
-		hasPendingNextWordPrediction = false;
+		session.hasPendingNextWordPrediction = false;
 
 		if (lastWord.isEmpty()) {
-			surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
+			surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, session.mode);
 		} else {
-			mInputMode.onAcceptSuggestion(lastWord);
+			session.mode.onAcceptSuggestion(lastWord);
 			surroundingChars = autoCorrectSpace(
 				lastWord,
-				textField.getSurroundingStringForAutoAssistance(settings, mInputMode),
+				textField.getSurroundingStringForAutoAssistance(settings, session.mode),
 				false,
 				-1
 			);
 		}
 
 		// "type" and accept the new word
-		mInputMode.onAcceptSuggestion(text);
+		session.mode.onAcceptSuggestion(text);
 		textField.setText(text);
 		surroundingChars[0] += text;
 		surroundingChars = autoCorrectSpace(text, surroundingChars, true, -1);
 
-		if (surroundingChars[0].endsWith(Characters.getSpace(mLanguage))) {
+		if (surroundingChars[0].endsWith(Characters.getSpace(session.language))) {
 			waitForSpaceTrimKey();
 		}
 
 		forceShowWindow();
 
-		mInputMode.determineNextWordTextCase(surroundingChars[0], -1);
+		session.mode.determineNextWordTextCase(surroundingChars[0], -1);
 		updateShiftState(surroundingChars[0], false, false);
 
 		// After a space, show the most-frequent next-word hint from the word-pair store.
 		// Appears as both a suggestion and composing text so space/OK accept it the same way
 		// any in-progress word does.
-		if (Characters.getSpace(mLanguage).equals(text)) {
+		if (Characters.getSpace(session.language).equals(text)) {
 			showNextWordPrediction(lastWord);
 		}
 
@@ -594,19 +583,19 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	private void showNextWordPrediction(@Nullable String lastCommittedWord) {
-		if (!InputModeKind.isPredictive(mInputMode) || !settings.getPredictWordPairs()) {
+		if (!InputModeKind.isPredictive(session.mode) || !settings.getPredictWordPairs()) {
 			return;
 		}
 
 		String word1 = (lastCommittedWord != null && !lastCommittedWord.isEmpty())
 			? lastCommittedWord
-			: textField.getTextBeforeCursor(mLanguage, 50).getPreviousWord(false, false, false);
+			: textField.getTextBeforeCursor(session.language, 50).getPreviousWord(false, false, false);
 
 		if (word1 == null || word1.isEmpty()) {
 			return;
 		}
 
-		String predicted = DataStore.getNextWord(mLanguage, word1);
+		String predicted = DataStore.getNextWord(session.language, word1);
 		if (predicted == null || predicted.isEmpty()) {
 			return;
 		}
@@ -616,20 +605,20 @@ public abstract class TypingHandler extends BaseHandler {
 		ArrayList<String> suggestions = new ArrayList<>();
 		suggestions.add(predicted);
 		suggestionOps.set(suggestions, 0, false);
-		hasPendingNextWordPrediction = true;
+		session.hasPendingNextWordPrediction = true;
 	}
 
 
 	@NonNull
 	protected String[] autoCorrectSpace(@Nullable String currentWord, @NonNull String[] surroundingChars, boolean isWordAcceptedManually, int nextKey) {
-		if (currentWord == null || currentWord.isEmpty() || !settings.isAutoAssistanceOn(mInputMode)) {
+		if (currentWord == null || currentWord.isEmpty() || !settings.isAutoAssistanceOn(session.mode)) {
 			return surroundingChars;
 		}
 
 		String previousChars = surroundingChars[0];
 		final String nextChars = surroundingChars[1];
 
-		if (!inputType.isRustDesk() && mInputMode.shouldDeletePrecedingSpace(previousChars)) {
+		if (!inputType.isRustDesk() && session.mode.shouldDeletePrecedingSpace(previousChars)) {
 			textField.deletePrecedingSpace(currentWord);
 			if (previousChars.endsWith(" " + currentWord) && previousChars.length() > currentWord.length()) {
 				final int precedingSpace = previousChars.length() - currentWord.length() - 1;
@@ -637,7 +626,7 @@ public abstract class TypingHandler extends BaseHandler {
 			}
 		}
 
-		if (mInputMode.shouldAddPrecedingSpace(previousChars)) {
+		if (session.mode.shouldAddPrecedingSpace(previousChars)) {
 			textField.addPrecedingSpace(currentWord);
 			if (previousChars.endsWith(currentWord)) {
 				final int startOfWord = previousChars.length() - currentWord.length();
@@ -645,7 +634,7 @@ public abstract class TypingHandler extends BaseHandler {
 			}
 		}
 
-		if (mInputMode.shouldAddTrailingSpace(previousChars, nextChars, isWordAcceptedManually, nextKey)) {
+		if (session.mode.shouldAddTrailingSpace(previousChars, nextChars, isWordAcceptedManually, nextKey)) {
 			textField.setText(" ");
 			previousChars += " ";
 		}
@@ -665,7 +654,7 @@ public abstract class TypingHandler extends BaseHandler {
 			charsToDelete = charsToDelete > 0 ? charsToDelete : Math.max(textField.getPaddedWordBeforeCursorLength(), 1);
 		}
 
-		textField.deleteChars(mLanguage, charsToDelete);
+		textField.deleteChars(session.language, charsToDelete);
 	}
 
 
@@ -675,18 +664,18 @@ public abstract class TypingHandler extends BaseHandler {
 	 * In case the settings are not valid, we will fallback to the default language.
 	 */
 	private boolean determineLanguage() {
-		mEnabledLanguages = settings.getEnabledLanguageIds();
+		session.enabledLanguages = settings.getEnabledLanguageIds();
 
-		int oldLang = mLanguage != null ? mLanguage.getId() : -1;
-		mLanguage = LanguageCollection.getLanguage(settings.getInputLanguage());
+		int oldLang = session.language != null ? session.language.getId() : -1;
+		session.language = LanguageCollection.getLanguage(settings.getInputLanguage());
 		validateLanguages();
 
-		Language appLanguage = textField.getLanguage(mEnabledLanguages);
+		Language appLanguage = textField.getLanguage(session.enabledLanguages);
 		if (appLanguage != null) {
-			mLanguage = appLanguage;
+			session.language = appLanguage;
 		}
 
-		return oldLang != mLanguage.getId();
+		return oldLang != session.language.getId();
 	}
 
 
@@ -695,7 +684,7 @@ public abstract class TypingHandler extends BaseHandler {
 	 * Restore the last used text case or auto-select a new one based on the input field properties.
 	 */
 	protected void determineTextCase() {
-		InputModeValidator.validateTextCase(mInputMode, settings.getTextCase());
+		InputModeValidator.validateTextCase(session.mode, settings.getTextCase());
 	}
 
 
@@ -711,20 +700,20 @@ public abstract class TypingHandler extends BaseHandler {
 			return InputMode.MODE_PASSTHROUGH;
 		}
 
-		allowedInputModes = new ArrayList<>(inputType.determineInputModes(getApplicationContext()));
-		if (LanguageKind.isJapanese(mLanguage)) {
+		session.allowedInputModes = new ArrayList<>(inputType.determineInputModes(getApplicationContext()));
+		if (LanguageKind.isJapanese(session.language)) {
 			determineJapaneseInputModes();
 		}
 
-		if (!mLanguage.hasABC()) {
-			allowedInputModes.remove((Integer) InputMode.MODE_ABC);
+		if (!session.language.hasABC()) {
+			session.allowedInputModes.remove((Integer) InputMode.MODE_ABC);
 		}
 
 		if (!settings.getPredictiveMode()) {
-			allowedInputModes.remove((Integer) InputMode.MODE_PREDICTIVE);
+			session.allowedInputModes.remove((Integer) InputMode.MODE_PREDICTIVE);
 		}
 
-		return InputModeValidator.validateMode(settings.getInputMode(), allowedInputModes);
+		return InputModeValidator.validateMode(settings.getInputMode(), session.allowedInputModes);
 	}
 
 
@@ -733,9 +722,9 @@ public abstract class TypingHandler extends BaseHandler {
 	 * So when typing letters is possible (ABC mode allowed), we replace ABC with these two modes.
 	 */
 	private void determineJapaneseInputModes() {
-		if (allowedInputModes.contains(InputMode.MODE_ABC)) {
-			allowedInputModes.add(InputMode.MODE_HIRAGANA);
-			allowedInputModes.add(InputMode.MODE_KATAKANA);
+		if (session.allowedInputModes.contains(InputMode.MODE_ABC)) {
+			session.allowedInputModes.add(InputMode.MODE_HIRAGANA);
+			session.allowedInputModes.add(InputMode.MODE_KATAKANA);
 		}
 	}
 
@@ -745,7 +734,7 @@ public abstract class TypingHandler extends BaseHandler {
 	 * Same as determineInputModeId(), but returns an actual InputMode.
 	 */
 	protected InputMode determineInputMode() {
-		return InputMode.getInstance(settings, mLanguage, inputType, textField, determineInputModeId());
+		return InputMode.getInstance(settings, session.language, inputType, textField, determineInputModeId());
 	}
 
 
@@ -758,11 +747,11 @@ public abstract class TypingHandler extends BaseHandler {
 			return;
 		}
 
-		final String previousWord = mInputMode.recompose();
+		final String previousWord = session.mode.recompose();
 		if (textField.recompose(previousWord)) {
 			getSuggestions(0, previousWord, null);
 		} else {
-			mInputMode.reset();
+			session.mode.reset();
 		}
 	}
 
@@ -777,7 +766,7 @@ public abstract class TypingHandler extends BaseHandler {
 		// in case the app has modified the InputField and moved the cursor without notifying us...
 		if (CursorOps.isInputReset(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)) {
 			stopWaitingForSpaceTrimKey();
-			if (!appHacks.acceptComposingTextOnCursorReset(mInputMode, suggestionOps, textField)) {
+			if (!appHacks.acceptComposingTextOnCursorReset(session.mode, suggestionOps, textField)) {
 				suggestionOps.clear();
 			}
 			return;
@@ -788,8 +777,8 @@ public abstract class TypingHandler extends BaseHandler {
 		// This is confusing from user perspective, so we want to avoid it.
 		if (CursorOps.isMovedWhileTyping(newSelStart, newSelEnd, candidatesStart, candidatesEnd)) {
 			stopWaitingForSpaceTrimKey();
-			inPredictiveFallback = false;
-			mInputMode.onCursorMove(suggestionOps.acceptIncomplete());
+			session.inPredictiveFallback = false;
+			session.mode.onCursorMove(suggestionOps.acceptAndClear(false));
 			return;
 		}
 
@@ -813,11 +802,11 @@ public abstract class TypingHandler extends BaseHandler {
 			return;
 		}
 
-		mInputMode.setWordStem(suggestionOps.getCurrent(), true);
-		if (InputModeKind.isRecomposing(mInputMode)) {
-			appHacks.setComposingTextPartsWithHighlightedJoining(mInputMode.getWordStem() + suggestionOps.getCurrent(), mInputMode.getRecomposingSuffix());
+		session.mode.setWordStem(suggestionOps.getCurrent(), true);
+		if (InputModeKind.isRecomposing(session.mode)) {
+			appHacks.setComposingTextPartsWithHighlightedJoining(session.mode.getWordStem() + suggestionOps.getCurrent(), session.mode.getRecomposingSuffix());
 		} else {
-			appHacks.setComposingTextWithHighlightedStem(suggestionOps.getCurrent(), mInputMode.getWordStem(), mInputMode.isStemFilterFuzzy());
+			appHacks.setComposingTextWithHighlightedStem(suggestionOps.getCurrent(), session.mode.getWordStem(), session.mode.isStemFilterFuzzy());
 		}
 	}
 
@@ -839,11 +828,11 @@ public abstract class TypingHandler extends BaseHandler {
 
 		if (determineTextCase) {
 			beforeCursor = beforeCursor != null ? beforeCursor : textField.getStringBeforeCursor();
-			mInputMode.determineNextWordTextCase(beforeCursor, -1);
+			session.mode.determineNextWordTextCase(beforeCursor, -1);
 		}
 
-		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
-		setStatusIcon(mInputMode, mLanguage);
+		getDisplayTextCase(session.language, session.mode.getTextCase());
+		setStatusIcon(session.mode, session.language);
 	}
 
 
@@ -858,21 +847,21 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	private String[] onAcceptPreviousSuggestion() {
-		final int lastWordLength = InputModeKind.isABC(mInputMode) ? 1 : mInputMode.getSequenceLength() - 1;
-		String lastWord = suggestionOps.getCurrent(mLanguage, lastWordLength);
+		final int lastWordLength = InputModeKind.isABC(session.mode) ? 1 : session.mode.getSequenceLength() - 1;
+		String lastWord = suggestionOps.getCurrent(session.language, lastWordLength);
 		if (Characters.PLACEHOLDER.equals(lastWord)) {
 			lastWord = "";
 		}
 
-		suggestionOps.commitCurrent(false, true);
-		mInputMode.onAcceptSuggestion(lastWord, true);
+		suggestionOps.acceptAndClear(false);
+		session.mode.onAcceptSuggestion(lastWord, true);
 		final String[] surroundingText = autoCorrectSpace(
 			lastWord,
-			textField.getSurroundingStringForAutoAssistance(settings, mInputMode),
+			textField.getSurroundingStringForAutoAssistance(settings, session.mode),
 			false,
-			mInputMode.getFirstKey()
+			session.mode.getFirstKey()
 		);
-		mInputMode.determineNextWordTextCase(surroundingText[0], -1);
+		session.mode.determineNextWordTextCase(surroundingText[0], -1);
 
 		return surroundingText;
 	}
@@ -885,7 +874,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 
 	protected void onAcceptSuggestionManually(String word, int fromKey) {
-		mInputMode.onAcceptSuggestion(word);
+		session.mode.onAcceptSuggestion(word);
 		if (Clipboard.contains(word)) {
 			Clipboard.copy(this, word);
 		}
@@ -893,22 +882,22 @@ public abstract class TypingHandler extends BaseHandler {
 		if (!word.isEmpty()) {
 			String[] surroundingText = autoCorrectSpace(
 				word,
-				textField.getSurroundingStringForAutoAssistance(settings, mInputMode),
+				textField.getSurroundingStringForAutoAssistance(settings, session.mode),
 				true,
 				fromKey
 			);
 
-			mInputMode.determineNextWordTextCase(surroundingText[0], -1);
+			session.mode.determineNextWordTextCase(surroundingText[0], -1);
 			updateShiftState(surroundingText[0], false, false);
 			resetKeyRepeat();
 		}
 
-		if (!Characters.getSpace(mLanguage).equals(word)) {
+		if (!Characters.getSpace(session.language).equals(word)) {
 			waitForSpaceTrimKey();
 		}
 
 		// In fallback mode: exit when a space is accepted
-		if (isInPredictiveFallback() && Characters.getSpace(mLanguage).equals(word)) {
+		if (isInPredictiveFallback() && Characters.getSpace(session.language).equals(word)) {
 			exitPredictiveFallback();
 		}
 	}
@@ -926,14 +915,14 @@ public abstract class TypingHandler extends BaseHandler {
 	 * is still loading. Note that onComplete is called even if the loading was skipped.
 	 */
 	protected void getSuggestions(double loadingId, @Nullable String currentWord, @Nullable Runnable onComplete) {
-		if (InputModeKind.isPredictive(mInputMode) && DictionaryLoader.getInstance(this).isRunning()) {
-			mInputMode.reset();
+		if (InputModeKind.isPredictive(session.mode) && DictionaryLoader.getInstance(this).isRunning()) {
+			session.mode.reset();
 			UI.toastShortSingle(this, R.string.dictionary_loading_please_wait);
 			if (onComplete != null) {
 				onComplete.run();
 			}
 		} else {
-			mInputMode
+			session.mode
 				.setOnSuggestionsUpdated(() -> handleSuggestionsAsync(loadingId, onComplete))
 				.loadSuggestions(currentWord == null ? suggestionOps.getCurrent() : currentWord);
 		}
@@ -960,33 +949,33 @@ public abstract class TypingHandler extends BaseHandler {
 		// last key press makes up a compound word like: (it)'s, (I)'ve, l'(oiseau), or it is
 		// just the end of a sentence, like: "word." or "another?"
 		String[] surroundingText = null;
-		if (mInputMode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent())) {
+		if (session.mode.shouldAcceptPreviousSuggestion(suggestionOps.getCurrent())) {
 			surroundingText = onAcceptPreviousSuggestion();
 		}
 
-		final ArrayList<String> suggestions = mInputMode.getSuggestions();
-		suggestionOps.set(suggestions, mInputMode.getRecommendedSuggestionIdx(), mInputMode.containsGeneratedSuggestions());
+		final ArrayList<String> suggestions = session.mode.getSuggestions();
+		suggestionOps.set(suggestions, session.mode.getRecommendedSuggestionIdx(), session.mode.containsGeneratedSuggestions());
 
 		// Predictive fallback: when no dictionary words match, commit everything except the
 		// last key press, switch to ABC mode, and replay the last key so it shows ABC letters.
-		if (!isInPredictiveFallback() && InputModeKind.isPredictive(mInputMode) && mInputMode.shouldFallbackToManual()) {
-			int lastKey = mInputMode.getLastKey();
-			int seqLen = mInputMode.getSequenceLength();
+		if (!isInPredictiveFallback() && InputModeKind.isPredictive(session.mode) && session.mode.shouldFallbackToManual()) {
+			int lastKey = session.mode.getLastKey();
+			int seqLen = session.mode.getSequenceLength();
 
 			String wordBeforeLastKey = seqLen > 1
-				? suggestionOps.getCurrent(mLanguage, seqLen - 1)
+				? suggestionOps.getCurrent(session.language, seqLen - 1)
 				: "";
 			if (!wordBeforeLastKey.isEmpty()) {
 				appHacks.setComposingText(wordBeforeLastKey);
 			}
 			textField.finishComposingText();
-			mInputMode.onAcceptSuggestion(wordBeforeLastKey);
+			session.mode.onAcceptSuggestion(wordBeforeLastKey);
 			suggestionOps.set(null);
 
 			enterPredictiveFallback(wordBeforeLastKey.length());
 			if (lastKey >= 0) {
-				String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, mInputMode);
-				mInputMode.onNumber(lastKey, false, 0, surroundingChars);
+				String[] surroundingChars = textField.getSurroundingStringForAutoAssistance(settings, session.mode);
+				session.mode.onNumber(lastKey, false, 0, surroundingChars);
 				getSuggestions(0, null, null);
 			}
 			return;
@@ -994,7 +983,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 		// either accept the first one automatically (when switching from punctuation to text
 		// or vice versa), or schedule auto-accept in N seconds (in ABC mode)
-		if (suggestionOps.scheduleDelayedAccept(mInputMode.getAutoAcceptTimeout())) {
+		if (suggestionOps.scheduleDelayedAccept(session.mode.getAutoAcceptTimeout())) {
 			if (onComplete != null) {
 				onComplete.run();
 			}
@@ -1006,12 +995,12 @@ public abstract class TypingHandler extends BaseHandler {
 		// (the count of key presses), for a more intuitive experience.
 		String trimmedWord;
 
-		if (InputModeKind.isRecomposing(mInputMode)) {
-			trimmedWord = mInputMode.getWordStem() + suggestionOps.getCurrent();
-			appHacks.setComposingTextPartsWithHighlightedJoining(trimmedWord, mInputMode.getRecomposingSuffix());
+		if (InputModeKind.isRecomposing(session.mode)) {
+			trimmedWord = session.mode.getWordStem() + suggestionOps.getCurrent();
+			appHacks.setComposingTextPartsWithHighlightedJoining(trimmedWord, session.mode.getRecomposingSuffix());
 		} else {
-			trimmedWord = suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength());
-			appHacks.setComposingTextWithHighlightedStem(trimmedWord, mInputMode.getWordStem(), mInputMode.isStemFilterFuzzy());
+			trimmedWord = suggestionOps.getCurrent(session.language, session.mode.getSequenceLength());
+			appHacks.setComposingTextWithHighlightedStem(trimmedWord, session.mode.getWordStem(), session.mode.isStemFilterFuzzy());
 		}
 
 		onAfterSuggestionsHandled(onComplete, surroundingText, trimmedWord, suggestions.isEmpty());

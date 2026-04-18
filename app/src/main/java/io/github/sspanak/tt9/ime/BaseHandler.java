@@ -30,9 +30,9 @@ abstract class BaseHandler extends InputMethodService {
 	private final static String LOG_TAG = "BaseHandler";
 
 	@NonNull protected final AppHacks appHacks = new AppHacks();
+	@NonNull protected final TypingSession session = new TypingSession();
 	protected SettingsStore settings;
 
-	protected int displayTextCase = InputMode.CASE_UNDEFINED;
 	protected boolean isMainViewShown = false;
 
 
@@ -41,7 +41,7 @@ abstract class BaseHandler extends InputMethodService {
 	// hardware key handlers
 	abstract public Ternary onBack();
 	abstract public boolean onBackspace(int repeat);
-	abstract public boolean onHotkey(int keyCode, boolean repeat, boolean validateOnly);
+	abstract public KeyIntent onHotkey(int keyCode, boolean repeat);
 	abstract protected boolean onNumber(int key, boolean hold, int repeat);
 	abstract public boolean onOK();
 	abstract public boolean onText(String text, boolean validateOnly);
@@ -101,20 +101,20 @@ abstract class BaseHandler extends InputMethodService {
 	protected int getDisplayTextCase(@Nullable Language language, int modeTextCase) {
 		boolean hasUpperCase = language != null && language.hasUpperCase();
 		if (!hasUpperCase) {
-			return displayTextCase = InputMode.CASE_UNDEFINED;
+			return session.displayTextCase = InputMode.CASE_UNDEFINED;
 		}
 
 		if (modeTextCase == InputMode.CASE_UPPER) {
-			return displayTextCase = InputMode.CASE_UPPER;
+			return session.displayTextCase = InputMode.CASE_UPPER;
 		}
 
 		Text currentWord = new Text(language, getSuggestionOps().getCurrent());
 		if (currentWord.isEmpty() || !currentWord.isAlphabetic()) {
-			return displayTextCase = modeTextCase;
+			return session.displayTextCase = modeTextCase;
 		}
 
 		final int wordTextCase = currentWord.getTextCase();
-		return displayTextCase = wordTextCase == InputMode.CASE_UPPER ? InputMode.CASE_CAPITALIZE : wordTextCase;
+		return session.displayTextCase = wordTextCase == InputMode.CASE_UPPER ? InputMode.CASE_CAPITALIZE : wordTextCase;
 	}
 
 
@@ -123,7 +123,7 @@ abstract class BaseHandler extends InputMethodService {
 			return;
 		}
 
-		final int resId = new StatusIcon(settings.isStatusIconEnabled() ? mode : null, language, displayTextCase).resourceId;
+		final int resId = new StatusIcon(settings.isStatusIconEnabled() ? mode : null, language, session.displayTextCase).resourceId;
 		if (resId == 0) {
 			hideStatusIcon();
 		} else {

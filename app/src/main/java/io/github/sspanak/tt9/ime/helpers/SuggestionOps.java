@@ -249,20 +249,48 @@ public class SuggestionOps {
 	}
 
 
-	public String acceptCurrent() {
+	/**
+	 * Finalise the current suggestion and clear the list.
+	 *
+	 * @param entireSuggestion if true, the current suggestion is written as composing text before
+	 *                         being finalised; if false, whatever is in the composing buffer is
+	 *                         finalised as-is.
+	 * @return the current suggestion, or "" if there is nothing to accept.
+	 */
+	public String acceptAndClear(boolean entireSuggestion) {
 		final String current = getCurrent();
 		if (Characters.PLACEHOLDER.equals(current)) {
 			return "";
 		}
-
-		if (!current.isEmpty()) {
-			commitCurrent(true, true);
+		if (entireSuggestion && current.isEmpty()) {
+			return current;
 		}
-
+		commitCurrent(entireSuggestion, true);
 		return current;
 	}
 
 
+	/**
+	 * Finalise the composing text but keep the suggestion list intact so the user can still
+	 * scroll / filter / change case without losing context.
+	 *
+	 * @param entireSuggestion see {@link #acceptAndClear(boolean)}.
+	 */
+	public String acceptAndKeep(boolean entireSuggestion) {
+		final String current = getCurrent();
+		if (Characters.PLACEHOLDER.equals(current)) {
+			return "";
+		}
+		commitCurrent(entireSuggestion, false);
+		return current;
+	}
+
+
+	/**
+	 * Recomposing-only: replace the trailing {@code current.length()} characters of the existing
+	 * composing text with {@code current}, then finalise. Preserves any stem/joining characters
+	 * the user has left in front of the word.
+	 */
 	public String acceptEdited() {
 		final String current = getCurrent();
 		if (current.isEmpty() || Characters.PLACEHOLDER.equals(current)) {
@@ -286,29 +314,7 @@ public class SuggestionOps {
 	}
 
 
-	public String acceptIncomplete() {
-		final String current = getCurrent();
-		if (Characters.PLACEHOLDER.equals(current)) {
-			return "";
-		}
-
-		commitCurrent(false, true);
-
-		return current;
-	}
-
-
-	public String acceptIncompleteAndKeepList() {
-		if (Characters.PLACEHOLDER.equals(this.getCurrent())) {
-			return "";
-		}
-
-		commitCurrent(false, false);
-		return this.getCurrent();
-	}
-
-
-	public void commitCurrent(boolean entireSuggestion, boolean clearList) {
+	private void commitCurrent(boolean entireSuggestion, boolean clearList) {
 		if (!isEmpty()) {
 			if (entireSuggestion) {
 				if (appHacks == null) {
@@ -334,10 +340,10 @@ public class SuggestionOps {
 		}
 
 		if (delay == 0) {
-			onDelayedAccept.accept(acceptCurrent());
+			onDelayedAccept.accept(acceptAndClear(true));
 			return true;
 		} else if (delay > 0) {
-			delayedAcceptHandler.postDelayed(() -> onDelayedAccept.accept(acceptCurrent()), delay);
+			delayedAcceptHandler.postDelayed(() -> onDelayedAccept.accept(acceptAndClear(true)), delay);
 		}
 
 		return false;

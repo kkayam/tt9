@@ -11,7 +11,7 @@ public class CmdRedo implements Command {
 	@Override public String getId() { return ID; }
 	@Override public int getIcon() { return R.drawable.ic_fn_redo; }
 	@Override public int getName() { return R.string.function_redo; }
-	@Override public boolean run(@Nullable TraditionalT9 tt9) { return tt9 != null && tt9.onKeyRedo(false); }
+	@Override public boolean run(@Nullable TraditionalT9 tt9) { return tt9 != null && tt9.onKeyRedo().run(); }
 	@Override public int getHardKey() { return 6; }
 	@Override public int getPaletteKey() { return R.id.soft_key_6; }
 

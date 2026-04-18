@@ -58,15 +58,11 @@ public abstract class CommandHandler extends TypingHandler {
 	private AutoTextCase autoTextCase;
 	private String beforeSpeech = "";
 
-	protected boolean isLanguageRTL;
-
 	@NonNull protected final EmojiMode emojiMode = new EmojiMode(
 		this::getApplicationContext,
 		() -> suggestionOps,
 		() -> textField
 	);
-
-	private boolean waitingForSpaceTrim = false;
 
 	// Main view / orientation
 	private OrientationListener orientationListener;
@@ -145,13 +141,13 @@ public abstract class CommandHandler extends TypingHandler {
 			boolean shouldEnterFallback = false;
 			String acceptedWord = "";
 
-			if (mInputMode.shouldReplacePreviousSuggestion(suggestionOps.getCurrent())) {
-				mInputMode.onReplaceSuggestion(suggestionOps.getCurrentRaw());
-			} else if (InputModeKind.isRecomposing(mInputMode)) {
+			if (session.mode.shouldReplacePreviousSuggestion(suggestionOps.getCurrent())) {
+				session.mode.onReplaceSuggestion(suggestionOps.getCurrentRaw());
+			} else if (InputModeKind.isRecomposing(session.mode)) {
 				onAcceptSuggestionManually(suggestionOps.acceptEdited(), KeyEvent.KEYCODE_ENTER);
 			} else {
-				shouldEnterFallback = InputModeKind.isPredictive(mInputMode) && !isInPredictiveFallback();
-				acceptedWord = suggestionOps.acceptCurrent();
+				shouldEnterFallback = InputModeKind.isPredictive(session.mode) && !isInPredictiveFallback();
+				acceptedWord = suggestionOps.acceptAndClear(true);
 				onAcceptSuggestionManually(acceptedWord, KeyEvent.KEYCODE_ENTER);
 			}
 
@@ -186,7 +182,7 @@ public abstract class CommandHandler extends TypingHandler {
 		stopWaitingForSpaceTrimKey();
 
 		// Hold a number key = hotkey lookup
-		if (hold && onHotkey(-Key.numberToCode(key), false, false)) {
+		if (hold && onHotkey(-Key.numberToCode(key), false).run()) {
 			return true;
 		}
 
@@ -200,29 +196,30 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	@Override
-	public boolean onHotkey(int keyCode, boolean repeat, boolean validateOnly) {
-		// Voice-input and recomposing-aware handling for star/pound
+	public KeyIntent onHotkey(int keyCode, boolean repeat) {
+		// Voice-input override for star/pound while listening.
 		if (voiceInputOps != null && voiceInputOps.isListening()) {
 			switch (keyCode) {
 				case KeyEvent.KEYCODE_STAR:
-					if (validateOnly) return true;
-					return navigateBack();
+					return KeyIntent.accept(this::navigateBack);
 				case KeyEvent.KEYCODE_POUND:
-					return isFnPanelVisible();
+					return isFnPanelVisible() ? KeyIntent.ACCEPT_NOOP : KeyIntent.REJECT;
 			}
 		}
 
 		if (keyCode == KeyEvent.KEYCODE_UNKNOWN || (keyCode < 0 && Key.isNumber(-keyCode) && !settings.getHoldToType())) {
-			return false;
+			return KeyIntent.REJECT;
 		}
 
-		return onHardcodedKey(keyCode, validateOnly) || onDynamicKey(keyCode, repeat, validateOnly);
+		final KeyIntent hardcoded = onHardcodedKey(keyCode);
+		if (hardcoded.accepted()) return hardcoded;
+		return onDynamicKey(keyCode, repeat);
 	}
 
 
 	@Override
 	public Ternary onBack() {
-		waitingForSpaceTrim = false;
+		session.waitingForSpaceTrim = false;
 
 		// voice input: just stop, don't abort anything else
 		if (voiceInputOps != null && voiceInputOps.isListening()) {
@@ -242,28 +239,29 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	private boolean onHardcodedKey(int keyCode, boolean validateOnly) {
-		if (Key.isArrowUp(keyCode) && onKeyEditDuplicateLetter(validateOnly)) {
-			return true;
+	private KeyIntent onHardcodedKey(int keyCode) {
+		if (Key.isArrowUp(keyCode)) {
+			final KeyIntent intent = onKeyEditDuplicateLetter();
+			if (intent.accepted()) return intent;
 		}
 
 		if (Key.isArrowLeft(-keyCode) || Key.isArrowRight(-keyCode)) {
-			if (onKeyEditAdjacentLetter(validateOnly, -keyCode)) {
-				return true;
-			}
+			final KeyIntent intent = onKeyEditAdjacentLetter(-keyCode);
+			if (intent.accepted()) return intent;
 		}
 
-		if (Key.isArrowLeft(keyCode) && onTrimTrailingSpace(validateOnly)) {
-			return true;
+		if (Key.isArrowLeft(keyCode)) {
+			final KeyIntent intent = onTrimTrailingSpace();
+			if (intent.accepted()) return intent;
 		}
 
-		return false;
+		return KeyIntent.REJECT;
 	}
 
 
 	@FunctionalInterface
 	private interface HotkeyAction {
-		boolean run(boolean repeat, boolean validateOnly);
+		KeyIntent run(boolean repeat);
 	}
 
 	private record DynamicHotkey(@NonNull IntSupplier keyCode, @NonNull HotkeyAction action) {}
@@ -274,40 +272,42 @@ public abstract class CommandHandler extends TypingHandler {
 	private List<DynamicHotkey> dynamicHotkeys() {
 		if (dynamicHotkeys == null) {
 			dynamicHotkeys = List.of(
-				new DynamicHotkey(settings::getKeyAddWord,          (r, v) -> onKeyAddWord(v)),
-				new DynamicHotkey(settings::getKeyCommandPalette,   (r, v) -> onKeyEmoji(v)),
-				new DynamicHotkey(settings::getKeyEditText,         (r, v) -> onKeyEditText(v)),
-				new DynamicHotkey(settings::getKeyEditWord,         (r, v) -> onKeyEditWord(v)),
-				new DynamicHotkey(settings::getKeyFilterClear,      (r, v) -> onKeyFilterClear(v)),
-				new DynamicHotkey(settings::getKeyFilterSuggestions,(r, v) -> onKeyFilterSuggestions(v, r)),
-				new DynamicHotkey(settings::getKeyNextLanguage,     (r, v) -> onKeyNextLanguage(v)),
-				new DynamicHotkey(settings::getKeyNextInputMode,    (r, v) -> onKeyNextInputMode(v)),
-				new DynamicHotkey(settings::getKeyPreviousSuggestion,(r, v) -> onKeyScrollSuggestion(v, true)),
-				new DynamicHotkey(settings::getKeyNextSuggestion,   (r, v) -> onKeyScrollSuggestion(v, false)),
-				new DynamicHotkey(settings::getKeySelectKeyboard,   (r, v) -> onKeySelectKeyboard(v)),
+				new DynamicHotkey(settings::getKeyAddWord,          (r) -> onKeyAddWord()),
+				new DynamicHotkey(settings::getKeyCommandPalette,   (r) -> onKeyEmoji()),
+				new DynamicHotkey(settings::getKeyEditText,         (r) -> onKeyEditText()),
+				new DynamicHotkey(settings::getKeyEditWord,         (r) -> onKeyEditWord()),
+				new DynamicHotkey(settings::getKeyFilterClear,      (r) -> onKeyFilterClear()),
+				new DynamicHotkey(settings::getKeyFilterSuggestions,(r) -> onKeyFilterSuggestions(r)),
+				new DynamicHotkey(settings::getKeyNextLanguage,     (r) -> onKeyNextLanguage()),
+				new DynamicHotkey(settings::getKeyNextInputMode,    (r) -> onKeyNextInputMode()),
+				new DynamicHotkey(settings::getKeyPreviousSuggestion,(r) -> onKeyScrollSuggestion(true)),
+				new DynamicHotkey(settings::getKeyNextSuggestion,   (r) -> onKeyScrollSuggestion(false)),
+				new DynamicHotkey(settings::getKeySelectKeyboard,   (r) -> onKeySelectKeyboard()),
 				// Shift can be bound to the same key as Korean Space — try both from the Shift slot.
-				new DynamicHotkey(settings::getKeyShift,            (r, v) ->
-					onKeyNextTextCase(v)
-					|| (settings.getKeyShift() == settings.getKeySpaceKorean() && onKeySpaceKorean(v))
-				),
-				new DynamicHotkey(settings::getKeySpaceKorean,      (r, v) -> onKeySpaceKorean(v)),
-				new DynamicHotkey(settings::getKeyShowSettings,     (r, v) -> onKeyShowSettings(v)),
-				new DynamicHotkey(settings::getKeyUndo,             (r, v) -> onKeyUndo(v)),
-				new DynamicHotkey(settings::getKeyRedo,             (r, v) -> onKeyRedo(v)),
-				new DynamicHotkey(settings::getKeyVoiceInput,       (r, v) -> onKeyVoiceInput(v))
+				new DynamicHotkey(settings::getKeyShift,            (r) -> {
+					final KeyIntent shiftIntent = onKeyNextTextCase();
+					if (shiftIntent.accepted()) return shiftIntent;
+					if (settings.getKeyShift() == settings.getKeySpaceKorean()) return onKeySpaceKorean();
+					return KeyIntent.REJECT;
+				}),
+				new DynamicHotkey(settings::getKeySpaceKorean,      (r) -> onKeySpaceKorean()),
+				new DynamicHotkey(settings::getKeyShowSettings,     (r) -> onKeyShowSettings()),
+				new DynamicHotkey(settings::getKeyUndo,             (r) -> onKeyUndo()),
+				new DynamicHotkey(settings::getKeyRedo,             (r) -> onKeyRedo()),
+				new DynamicHotkey(settings::getKeyVoiceInput,       (r) -> onKeyVoiceInput())
 			);
 		}
 		return dynamicHotkeys;
 	}
 
 
-	private boolean onDynamicKey(int keyCode, boolean repeat, boolean validateOnly) {
+	private KeyIntent onDynamicKey(int keyCode, boolean repeat) {
 		for (DynamicHotkey hk : dynamicHotkeys()) {
 			if (hk.keyCode().getAsInt() == keyCode) {
-				return hk.action().run(repeat, validateOnly);
+				return hk.action().run(repeat);
 			}
 		}
-		return false;
+		return KeyIntent.REJECT;
 	}
 
 
@@ -316,77 +316,77 @@ public abstract class CommandHandler extends TypingHandler {
 			keyCode < 0
 			&& (
 				Key.isHotkey(settings, -keyCode)
-				|| (Key.isArrowLeft(-keyCode) && InputModeKind.isRecomposing(mInputMode))
-				|| (Key.isArrowRight(-keyCode) && InputModeKind.isRecomposing(mInputMode))
+				|| (Key.isArrowLeft(-keyCode) && InputModeKind.isRecomposing(session.mode))
+				|| (Key.isArrowRight(-keyCode) && InputModeKind.isRecomposing(session.mode))
 			);
 	}
 
 
 	/********** Hotkey handlers (dynamic) **********/
 
-	private boolean onKeyAddWord(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff()) return false;
-		if (!validateOnly) addWord();
-		return true;
+	private KeyIntent onKeyAddWord() {
+		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(this::addWord);
 	}
 
 
-	public boolean onKeyCommandPalette(boolean validateOnly) {
-		if (shouldBeOff()) return false;
-		return validateOnly;
+	/**
+	 * The command palette is reached via the palette key directly, not a hotkey press — so we
+	 * simply decline, letting the standard * handler route the press to {@link #onKeyEmoji()}.
+	 */
+	public KeyIntent onKeyCommandPalette() {
+		return KeyIntent.REJECT;
 	}
 
 
-	private boolean onKeyEmoji(boolean validateOnly) {
-		if (shouldBeOff()) return false;
-		if (validateOnly) return true;
-		if (emojiMode.isActive()) {
-			emojiMode.nextCategory();
-		} else {
-			enterEmojiMode();
-		}
-		forceShowWindow();
-		return true;
-	}
-
-
-	private boolean onKeyEditAdjacentLetter(boolean validateOnly, int keyCode) {
-		if (shouldBeOff() || !InputModeKind.isRecomposing(mInputMode)) return false;
-		if (!validateOnly) ((ModeRecomposing) mInputMode).skipLetter(Key.isArrowLeft(keyCode));
-		return true;
-	}
-
-
-	private boolean onKeyEditDuplicateLetter(boolean validateOnly) {
-		if (shouldBeOff() || !InputModeKind.isRecomposing(mInputMode)) return false;
-		if (!validateOnly) ((ModeRecomposing) mInputMode).duplicateLetter();
-		return true;
-	}
-
-
-	private boolean onKeyEditText(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff()) return false;
-		if (!validateOnly && !hideTextEditingPalette()) {
-			showTextEditingPalette();
+	private KeyIntent onKeyEmoji() {
+		if (shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			if (emojiMode.isActive()) {
+				emojiMode.nextCategory();
+			} else {
+				enterEmojiMode();
+			}
 			forceShowWindow();
-		}
-		return true;
+		});
 	}
 
 
-	public boolean onKeyEditWord(boolean validateOnly) {
-		if (shouldBeOff()) return false;
-		if (!validateOnly) {
+	private KeyIntent onKeyEditAdjacentLetter(int keyCode) {
+		if (shouldBeOff() || !InputModeKind.isRecomposing(session.mode)) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> ((ModeRecomposing) session.mode).skipLetter(Key.isArrowLeft(keyCode)));
+	}
+
+
+	private KeyIntent onKeyEditDuplicateLetter() {
+		if (shouldBeOff() || !InputModeKind.isRecomposing(session.mode)) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> ((ModeRecomposing) session.mode).duplicateLetter());
+	}
+
+
+	private KeyIntent onKeyEditText() {
+		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			if (!hideTextEditingPalette()) {
+				showTextEditingPalette();
+				forceShowWindow();
+			}
+		});
+	}
+
+
+	public KeyIntent onKeyEditWord() {
+		if (shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
 			forceShowWindow();
 			editWord();
-		}
-		return true;
+		});
 	}
 
 
 	public boolean onKeyMoveCursor(int direction) {
 		suggestionOps.cancelDelayedAccept();
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
+		session.mode.onAcceptSuggestion(suggestionOps.acceptAndClear(false));
 		resetKeyRepeat();
 
 		final boolean backward = direction == CmdMoveCursor.CURSOR_MOVE_LEFT;
@@ -394,7 +394,7 @@ public abstract class CommandHandler extends TypingHandler {
 		if (textSelection.isEmpty()) {
 			return
 				appHacks.onMoveCursor(direction)
-				|| (backward && onTrimTrailingSpace(false))
+				|| (backward && onTrimTrailingSpace().run())
 				|| textField.moveCursor(direction);
 		} else {
 			textSelection.clear(backward);
@@ -403,215 +403,203 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	public boolean onKeyFilterClear(boolean validateOnly) {
-		if (suggestionOps.isEmpty()) return false;
-		if (validateOnly) return true;
+	public KeyIntent onKeyFilterClear() {
+		if (suggestionOps.isEmpty()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			suggestionOps.cancelDelayedAccept();
 
-		suggestionOps.cancelDelayedAccept();
+			int stemLength = session.mode.getWordStem().length();
+			boolean isFilteringOn = session.mode.isStemFilterFuzzy() || (stemLength > 0 && session.mode.getSequenceLength() != stemLength);
 
-		int stemLength = mInputMode.getWordStem().length();
-		boolean isFilteringOn = mInputMode.isStemFilterFuzzy() || (stemLength > 0 && mInputMode.getSequenceLength() != stemLength);
-
-		if (mInputMode.clearWordStem() && isFilteringOn) {
-			mInputMode
-				.setOnSuggestionsUpdated(this::handleSuggestionsAsync)
-				.loadSuggestions(suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength()));
-			return true;
-		}
-
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
-		resetKeyRepeat();
-		return true;
-	}
-
-
-	public boolean onKeyFilterSuggestions(boolean validateOnly, boolean repeat) {
-		if (suggestionOps.isEmpty()) return false;
-
-		if (!mInputMode.supportsFiltering()) {
-			UI.toastShortSingle(this, R.string.function_filter_suggestions_not_available);
-			return true;
-		}
-
-		if (validateOnly) return true;
-
-		suggestionOps.cancelDelayedAccept();
-
-		String filter;
-		if (repeat && !suggestionOps.get(1).isEmpty()) {
-			filter = suggestionOps.get(1);
-		} else {
-			filter = suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength());
-		}
-
-		if (filter.isEmpty()) {
-			mInputMode.reset();
-		} else if (mInputMode.setWordStem(filter, repeat)) {
-			mInputMode
-				.setOnSuggestionsUpdated(this::handleSuggestionsAsync)
-				.loadSuggestions(filter);
-		}
-
-		return true;
-	}
-
-
-	public boolean onKeyScrollSuggestion(boolean validateOnly, boolean backward) {
-		if (suggestionOps.isEmpty()) return false;
-		if (validateOnly) return true;
-
-		backward = isLanguageRTL != backward;
-		scrollSuggestions(backward);
-		return true;
-	}
-
-
-	public boolean onKeyNextLanguage(boolean validateOnly) {
-		if (InputModeKind.isNumeric(mInputMode) || mEnabledLanguages.size() < 2) return false;
-		if (validateOnly) return true;
-		if (settings.getQuickSwitchLanguage() || !changeLang()) nextLang();
-		return true;
-	}
-
-
-	public boolean onKeyNextInputMode(boolean validateOnly) {
-		if (allowedInputModes.size() == 1) return false;
-		if (validateOnly) return true;
-
-		suggestionOps.scheduleDelayedAccept(mInputMode.getAutoAcceptTimeout());
-		final int nextModeId = nextInputMode();
-		if (nextModeId != mInputMode.getId()) {
-			setInputMode(nextModeId);
-		}
-
-		forceShowWindow();
-		return true;
-	}
-
-
-	public boolean onKeyNextTextCase(boolean validateOnly) {
-		if (voiceInputOps.isListening() || inputType.isNumeric() || inputType.isPhoneNumber()) return false;
-		if (validateOnly) return true;
-
-		suggestionOps.scheduleDelayedAccept(mInputMode.getAutoAcceptTimeout());
-		if (!nextTextCase()) return false;
-
-		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
-		setStatusIcon(mInputMode, mLanguage);
-
-		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
-			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
-		}
-
-		getFinalContext().pushModeInfoToBar();
-		return true;
-	}
-
-
-	private boolean onKeySelectKeyboard(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff()) return false;
-		if (!validateOnly) selectKeyboard();
-		return true;
-	}
-
-
-	private boolean onKeyShowSettings(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff()) return false;
-		if (!validateOnly) showSettings();
-		return true;
-	}
-
-
-	public boolean onKeySpaceKorean(boolean validateOnly) {
-		if (shouldBeOff()) return false;
-
-		if (!suggestionOps.isEmpty() && LanguageKind.isCJK(mLanguage)) {
-			if (!validateOnly) {
-				onAcceptSuggestionManually(suggestionOps.acceptCurrent(), KeyEvent.KEYCODE_ENTER);
+			if (session.mode.clearWordStem() && isFilteringOn) {
+				session.mode
+					.setOnSuggestionsUpdated(this::handleSuggestionsAsync)
+					.loadSuggestions(suggestionOps.getCurrent(session.language, session.mode.getSequenceLength()));
+				return;
 			}
-			return true;
+
+			session.mode.onAcceptSuggestion(suggestionOps.acceptAndClear(false));
+			resetKeyRepeat();
+		});
+	}
+
+
+	public KeyIntent onKeyFilterSuggestions(boolean repeat) {
+		if (suggestionOps.isEmpty()) return KeyIntent.REJECT;
+
+		// Emit a toast at validation time (no real side effect; acceptable).
+		if (!session.mode.supportsFiltering()) {
+			UI.toastShortSingle(this, R.string.function_filter_suggestions_not_available);
+			return KeyIntent.ACCEPT_NOOP;
 		}
 
-		return onText(Characters.getSpace(mLanguage), validateOnly);
+		return KeyIntent.accept(() -> {
+			suggestionOps.cancelDelayedAccept();
+
+			String filter;
+			if (repeat && !suggestionOps.get(1).isEmpty()) {
+				filter = suggestionOps.get(1);
+			} else {
+				filter = suggestionOps.getCurrent(session.language, session.mode.getSequenceLength());
+			}
+
+			if (filter.isEmpty()) {
+				session.mode.reset();
+			} else if (session.mode.setWordStem(filter, repeat)) {
+				session.mode
+					.setOnSuggestionsUpdated(this::handleSuggestionsAsync)
+					.loadSuggestions(filter);
+			}
+		});
 	}
 
 
-	public boolean onKeyUndo(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff()) return false;
-		if (validateOnly) return true;
-		suggestionOps.cancelDelayedAccept();
-		suggestionOps.acceptCurrent();
-		return undo();
+	public KeyIntent onKeyScrollSuggestion(boolean backward) {
+		if (suggestionOps.isEmpty()) return KeyIntent.REJECT;
+		final boolean effectiveBackward = session.isLanguageRTL != backward;
+		return KeyIntent.accept(() -> scrollSuggestions(effectiveBackward));
 	}
 
 
-	public boolean onKeyRedo(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff()) return false;
-		if (validateOnly) return true;
-		suggestionOps.cancelDelayedAccept();
-		suggestionOps.acceptCurrent();
-		return redo();
+	public KeyIntent onKeyNextLanguage() {
+		if (InputModeKind.isNumeric(session.mode) || session.enabledLanguages.size() < 2) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			if (settings.getQuickSwitchLanguage() || !changeLang()) nextLang();
+		});
 	}
 
 
-	private boolean onKeyVoiceInput(boolean validateOnly) {
-		if (!isInputViewShown() || shouldBeOff() || !voiceInputOps.isAvailable()) return false;
-		if (!validateOnly) toggleVoiceInput();
-		return true;
+	public KeyIntent onKeyNextInputMode() {
+		if (session.allowedInputModes.size() == 1) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			suggestionOps.scheduleDelayedAccept(session.mode.getAutoAcceptTimeout());
+			final int nextModeId = nextInputMode();
+			if (nextModeId != session.mode.getId()) {
+				setInputMode(nextModeId);
+			}
+			forceShowWindow();
+		});
+	}
+
+
+	public KeyIntent onKeyNextTextCase() {
+		if (voiceInputOps.isListening() || inputType.isNumeric() || inputType.isPhoneNumber()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			suggestionOps.scheduleDelayedAccept(session.mode.getAutoAcceptTimeout());
+			if (!nextTextCase()) return;
+
+			getDisplayTextCase(session.language, session.mode.getTextCase());
+			setStatusIcon(session.mode, session.language);
+
+			if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
+				UI.toastShortSingle(this, session.mode.getClass().getSimpleName(), session.mode.toString());
+			}
+
+			getFinalContext().pushModeInfoToBar();
+		});
+	}
+
+
+	private KeyIntent onKeySelectKeyboard() {
+		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(this::selectKeyboard);
+	}
+
+
+	private KeyIntent onKeyShowSettings() {
+		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(this::showSettings);
+	}
+
+
+	public KeyIntent onKeySpaceKorean() {
+		if (shouldBeOff()) return KeyIntent.REJECT;
+
+		if (!suggestionOps.isEmpty() && LanguageKind.isCJK(session.language)) {
+			return KeyIntent.accept(() -> onAcceptSuggestionManually(suggestionOps.acceptAndClear(true), KeyEvent.KEYCODE_ENTER));
+		}
+
+		// Delegate to onText: it still uses validateOnly — treat the call as a validate probe.
+		if (!onText(Characters.getSpace(session.language), true)) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> onText(Characters.getSpace(session.language), false));
+	}
+
+
+	public KeyIntent onKeyUndo() {
+		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			suggestionOps.cancelDelayedAccept();
+			suggestionOps.acceptAndClear(true);
+			undo();
+		});
+	}
+
+
+	public KeyIntent onKeyRedo() {
+		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
+		return KeyIntent.accept(() -> {
+			suggestionOps.cancelDelayedAccept();
+			suggestionOps.acceptAndClear(true);
+			redo();
+		});
+	}
+
+
+	private KeyIntent onKeyVoiceInput() {
+		if (!isInputViewShown() || shouldBeOff() || !voiceInputOps.isAvailable()) return KeyIntent.REJECT;
+		return KeyIntent.accept(this::toggleVoiceInput);
 	}
 
 
 	@Override
 	protected void waitForSpaceTrimKey() {
-		waitingForSpaceTrim = true;
+		session.waitingForSpaceTrim = true;
 	}
 
 
 	@Override
 	protected void stopWaitingForSpaceTrimKey() {
-		waitingForSpaceTrim = false;
+		session.waitingForSpaceTrim = false;
 	}
 
 
-	private boolean onTrimTrailingSpace(boolean validateOnly) {
-		if (!waitingForSpaceTrim || !settings.getAutoTrimTrailingSpace() || !suggestionOps.isEmpty()) return false;
+	private KeyIntent onTrimTrailingSpace() {
+		if (!session.waitingForSpaceTrim || !settings.getAutoTrimTrailingSpace() || !suggestionOps.isEmpty()) return KeyIntent.REJECT;
 
 		String after = textField.getStringAfterCursor(1);
 		if (!after.isEmpty() && after.charAt(0) != '\n') {
 			stopWaitingForSpaceTrimKey();
-			return false;
+			return KeyIntent.REJECT;
 		}
 
 		String before = textField.getStringBeforeCursor(2);
-		if (before.equals(InputConnectionAsync.TIMEOUT_SENTINEL) || before.length() != 2 || Character.isWhitespace(before.charAt(0)) || before.charAt(1) != Characters.getSpace(mLanguage).charAt(0)) {
+		if (before.equals(InputConnectionAsync.TIMEOUT_SENTINEL) || before.length() != 2 || Character.isWhitespace(before.charAt(0)) || before.charAt(1) != Characters.getSpace(session.language).charAt(0)) {
 			stopWaitingForSpaceTrimKey();
-			return false;
+			return KeyIntent.REJECT;
 		}
 
-		if (!validateOnly) {
-			textField.deleteChars(mLanguage, 1);
+		return KeyIntent.accept(() -> {
+			textField.deleteChars(session.language, 1);
 			stopWaitingForSpaceTrimKey();
-		}
-
-		return true;
+		});
 	}
 
 
 	/********** Text-editing palette **********/
 
 	protected void detectRTL() {
-		isLanguageRTL = LanguageKind.isRTL(LanguageCollection.getLanguage(settings.getInputLanguage()));
+		session.isLanguageRTL = LanguageKind.isRTL(LanguageCollection.getLanguage(settings.getInputLanguage()));
 	}
 
 
 	private void onTextEditingCommand(int key) {
 		if (!suggestionOps.isEmpty() && key != 9) {
-			suggestionOps.acceptCurrent();
+			suggestionOps.acceptAndClear(true);
 		}
 
 		if (key == 0) {
-			if (!InputModeKind.isNumeric(mInputMode)) {
-				onText(Characters.getSpace(mLanguage), false);
+			if (!InputModeKind.isNumeric(session.mode)) {
+				onText(Characters.getSpace(session.language), false);
 			}
 		} else {
 			CommandCollection.getByHardKey(CommandCollection.COLLECTION_TEXT_EDITING, key).run(getFinalContext());
@@ -659,7 +647,7 @@ public abstract class CommandHandler extends TypingHandler {
 			return;
 		}
 
-		mInputMode.reset();
+		session.mode.reset();
 		suggestionOps.setClipboardItems(clips);
 		appHacks.setComposingTextWithHighlightedStem(suggestionOps.getCurrent(), null, false);
 	}
@@ -684,10 +672,10 @@ public abstract class CommandHandler extends TypingHandler {
 		}
 
 		suggestionOps.cancelDelayedAccept();
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
+		session.mode.onAcceptSuggestion(suggestionOps.acceptAndClear(false));
 		autoTextCase = new AutoTextCase(settings, new Sequences(), inputType);
 		beforeSpeech = textField.getStringBeforeCursor();
-		voiceInputOps.listen(mLanguage);
+		voiceInputOps.listen(session.language);
 	}
 
 
@@ -702,10 +690,10 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	private String autoCapitalize(String str) {
-		if (autoTextCase == null || !settings.isAutoTextCaseOn(mInputMode)) {
+		if (autoTextCase == null || !settings.isAutoTextCaseOn(session.mode)) {
 			return str;
 		}
-		return autoTextCase.adjustParagraphTextCase(mLanguage, str, beforeSpeech, mInputMode.getTextCase(), inputType.determineTextCase());
+		return autoTextCase.adjustParagraphTextCase(session.language, str, beforeSpeech, session.mode.getTextCase(), inputType.determineTextCase());
 	}
 
 
@@ -723,10 +711,10 @@ public abstract class CommandHandler extends TypingHandler {
 	private void onVoiceInputError(VoiceInputError error) {
 		if (error.isStartTimeout()) {
 			Logger.i(LOG_TAG, "Google SpeechRecognizer timed out. Enforcing alternative listening mode for the current session.");
-			voiceInputOps.forceAlternativeInput(true).listen(mLanguage);
-		} else if (error.isLanguageMissing() && voiceInputOps.enableOfflineMode(mLanguage, false)) {
-			Logger.i(LOG_TAG, "Voice input package for language '" + mLanguage.getName() + "' is missing. Enforcing online mode for the current session.");
-			voiceInputOps.listen(mLanguage);
+			voiceInputOps.forceAlternativeInput(true).listen(session.language);
+		} else if (error.isLanguageMissing() && voiceInputOps.enableOfflineMode(session.language, false)) {
+			Logger.i(LOG_TAG, "Voice input package for language '" + session.language.getName() + "' is missing. Enforcing online mode for the current session.");
+			voiceInputOps.listen(session.language);
 		} else if (error.isIrrelevantToUser()) {
 			Logger.i(LOG_TAG, "Ignoring voice input. " + error.debugMessage);
 			resetStatus();
@@ -754,17 +742,17 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	protected void editWord() {
-		if (!CmdEditWord.validate(getFinalContext(), settings, mLanguage)) return;
+		if (!CmdEditWord.validate(getFinalContext(), settings, session.language)) return;
 
-		final int previousMode = mInputMode.getId();
+		final int previousMode = session.mode.getId();
 		if (previousMode == InputMode.MODE_RECOMPOSING) {
 			Logger.d(getClass().getSimpleName(), "Already in recomposing mode. Nothing to do.");
 			return;
 		}
 
-		String word = suggestionOps.getCurrent(mLanguage, mInputMode.getSequenceLength());
+		String word = suggestionOps.getCurrent(session.language, session.mode.getSequenceLength());
 		if (word.isEmpty()) {
-			word = textField.recomposeSurroundingWord(mLanguage);
+			word = textField.recomposeSurroundingWord(session.language);
 		} else {
 			suggestionOps.set(null);
 		}
@@ -775,8 +763,8 @@ public abstract class CommandHandler extends TypingHandler {
 		}
 
 		setInputMode(InputMode.MODE_RECOMPOSING);
-		if (mInputMode.setWordStem(word, false)) {
-			((ModeRecomposing) mInputMode).setOnFinishListener(() -> setInputMode(previousMode));
+		if (session.mode.setWordStem(word, false)) {
+			((ModeRecomposing) session.mode).setOnFinishListener(() -> setInputMode(previousMode));
 			getSuggestions(0, "", null);
 		} else {
 			textField.finishComposingText();
@@ -784,7 +772,7 @@ public abstract class CommandHandler extends TypingHandler {
 			UI.toastShortSingle(
 				this,
 				"edit_word_invalid_characters",
-				getString(R.string.edit_word_invalid_characters, word, mLanguage.getName())
+				getString(R.string.edit_word_invalid_characters, word, session.language.getName())
 			);
 		}
 	}
@@ -815,40 +803,40 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	protected int nextInputMode() {
-		if (InputModeKind.isPassthrough(mInputMode) || voiceInputOps.isListening()) {
-			return mInputMode.getId();
+		if (InputModeKind.isPassthrough(session.mode) || voiceInputOps.isListening()) {
+			return session.mode.getId();
 		}
 
-		if (allowedInputModes.size() == 1 && allowedInputModes.contains(InputMode.MODE_123) && !InputModeKind.is123(mInputMode)) {
+		if (session.allowedInputModes.size() == 1 && session.allowedInputModes.contains(InputMode.MODE_123) && !InputModeKind.is123(session.mode)) {
 			return InputMode.MODE_123;
 		} else {
-			final int nextModeIndex = (allowedInputModes.indexOf(mInputMode.getId()) + 1) % allowedInputModes.size();
-			return allowedInputModes.get(nextModeIndex);
+			final int nextModeIndex = (session.allowedInputModes.indexOf(session.mode.getId()) + 1) % session.allowedInputModes.size();
+			return session.allowedInputModes.get(nextModeIndex);
 		}
 	}
 
 
 	protected void setInputMode(int modeId) {
-		if (!allowedInputModes.contains(modeId) && modeId != InputMode.MODE_RECOMPOSING) return;
+		if (!session.allowedInputModes.contains(modeId) && modeId != InputMode.MODE_RECOMPOSING) return;
 
-		inPredictiveFallback = false;
+		session.inPredictiveFallback = false;
 
 		suggestionOps.cancelDelayedAccept();
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
+		session.mode.onAcceptSuggestion(suggestionOps.acceptAndClear(false));
 		resetKeyRepeat();
 
-		mInputMode = InputMode.getInstance(settings, mLanguage, inputType, textField, modeId);
+		session.mode = InputMode.getInstance(settings, session.language, inputType, textField, modeId);
 		determineTextCase();
 
 		if (modeId != InputMode.MODE_RECOMPOSING) {
-			settings.saveInputMode(mInputMode.getId());
+			settings.saveInputMode(session.mode.getId());
 		}
 
-		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
-		setStatusIcon(mInputMode, mLanguage);
+		getDisplayTextCase(session.language, session.mode.getTextCase());
+		setStatusIcon(session.mode, session.language);
 
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
-			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
+			UI.toastShortSingle(this, session.mode.getClass().getSimpleName(), session.mode.toString());
 		}
 
 		getFinalContext().pushModeInfoToBar();
@@ -862,38 +850,38 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	protected void nextLang() {
-		int previous = mEnabledLanguages.indexOf(mLanguage.getId());
-		int next = (previous + 1) % mEnabledLanguages.size();
-		setLang(mEnabledLanguages.get(next));
+		int previous = session.enabledLanguages.indexOf(session.language.getId());
+		int next = (previous + 1) % session.enabledLanguages.size();
+		setLang(session.enabledLanguages.get(next));
 	}
 
 
 	public void setLang(int langId) {
-		if (!mEnabledLanguages.contains(langId)) return;
+		if (!session.enabledLanguages.contains(langId)) return;
 
-		inPredictiveFallback = false;
+		session.inPredictiveFallback = false;
 
 		suggestionOps.cancelDelayedAccept();
 		stopVoiceInput();
 
-		mLanguage = LanguageCollection.getLanguage(langId);
+		session.language = LanguageCollection.getLanguage(langId);
 		validateLanguages();
 
 		detectRTL();
-		settings.setDefaultCharOrder(mLanguage, false);
+		settings.setDefaultCharOrder(session.language, false);
 
-		mInputMode = InputMode
-			.getInstance(settings, mLanguage, inputType, textField, determineInputModeId())
-			.copy(mInputMode);
+		session.mode = InputMode
+			.getInstance(settings, session.language, inputType, textField, determineInputModeId())
+			.copy(session.mode);
 
-		if (mInputMode.isTyping()) {
+		if (session.mode.isTyping()) {
 			getSuggestions(0, null, this::onAfterLanguageChange);
 		} else {
 			onAfterLanguageChange();
 		}
 
-		if (InputModeKind.isPredictive(mInputMode)) {
-			DictionaryLoader.autoLoad(this, settings, mLanguage);
+		if (InputModeKind.isPredictive(session.mode)) {
+			DictionaryLoader.autoLoad(this, settings, session.language);
 		}
 
 		forceShowWindow();
@@ -901,26 +889,26 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	private void onAfterLanguageChange() {
-		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
-		setStatusIcon(mInputMode, mLanguage);
-		suggestionOps.setLanguage(mLanguage);
+		getDisplayTextCase(session.language, session.mode.getTextCase());
+		setStatusIcon(session.mode, session.language);
+		suggestionOps.setLanguage(session.language);
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
-			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
+			UI.toastShortSingle(this, session.mode.getClass().getSimpleName(), session.mode.toString());
 		}
 		getFinalContext().pushModeInfoToBar();
 	}
 
 
 	protected boolean nextTextCase() {
-		final String currentWord = !suggestionOps.isEmpty() && mInputMode.isTyping() ? suggestionOps.getCurrent() : "";
+		final String currentWord = !suggestionOps.isEmpty() && session.mode.isTyping() ? suggestionOps.getCurrent() : "";
 
-		if (!mInputMode.nextTextCase(currentWord, displayTextCase)) return false;
+		if (!session.mode.nextTextCase(currentWord, session.displayTextCase)) return false;
 
-		mInputMode.skipNextTextCaseDetection();
-		settings.saveTextCase(mInputMode.getTextCase());
+		session.mode.skipNextTextCaseDetection();
+		settings.saveTextCase(session.mode.getTextCase());
 
 		if (currentWord.isEmpty() && !suggestionOps.isEmpty()) {
-			suggestionOps.setTextCase(mLanguage, mInputMode.getTextCase());
+			suggestionOps.setTextCase(session.language, session.mode.getTextCase());
 			appHacks.setComposingText(suggestionOps.getCurrent());
 			return true;
 		} else if (currentWord.isEmpty() || (currentWord.length() == 1 && !Character.isAlphabetic(currentWord.charAt(0)))) {
@@ -930,10 +918,10 @@ public abstract class CommandHandler extends TypingHandler {
 		int currentSuggestionIndex = suggestionOps.getCurrentIndex();
 		currentSuggestionIndex = suggestionOps.containsStem() ? currentSuggestionIndex - 1 : currentSuggestionIndex;
 
-		suggestionOps.set(mInputMode.getSuggestions(), currentSuggestionIndex, mInputMode.containsGeneratedSuggestions());
+		suggestionOps.set(session.mode.getSuggestions(), currentSuggestionIndex, session.mode.containsGeneratedSuggestions());
 
-		if (InputModeKind.isRecomposing(mInputMode)) {
-			appHacks.setComposingTextPartsWithHighlightedJoining(mInputMode.getWordStem() + suggestionOps.getCurrent(), mInputMode.getRecomposingSuffix());
+		if (InputModeKind.isRecomposing(session.mode)) {
+			appHacks.setComposingTextPartsWithHighlightedJoining(session.mode.getWordStem() + suggestionOps.getCurrent(), session.mode.getRecomposingSuffix());
 		} else {
 			appHacks.setComposingText(suggestionOps.getCurrent());
 		}
@@ -951,7 +939,7 @@ public abstract class CommandHandler extends TypingHandler {
 
 	public void enterEmojiMode() {
 		suggestionOps.cancelDelayedAccept();
-		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
+		session.mode.onAcceptSuggestion(suggestionOps.acceptAndClear(false));
 		emojiMode.enter();
 	}
 
@@ -999,15 +987,15 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	public boolean isFilteringFuzzy() { return mInputMode.isStemFilterFuzzy(); }
+	public boolean isFilteringFuzzy() { return session.mode.isStemFilterFuzzy(); }
 	public boolean isFilteringOn() {
-		String stem = mInputMode.getWordStem();
+		String stem = session.mode.getWordStem();
 		return stem != null && !stem.isEmpty();
 	}
 	public boolean isFnPanelVisible() { return false; }
 	public boolean isInputLimited() { return inputType.isLimited(); }
-	public boolean isInputModeABC() { return InputModeKind.isABC(mInputMode); }
-	public boolean isInputModeNumeric() { return InputModeKind.isNumeric(mInputMode); }
+	public boolean isInputModeABC() { return InputModeKind.isABC(session.mode); }
+	public boolean isInputModeNumeric() { return InputModeKind.isNumeric(session.mode); }
 	public boolean isInputTypeNumeric() { return inputType.isNumeric(); }
 	public boolean isInputTypeDecimal() { return inputType.isDecimal() || inputType.isUnspecifiedNumber(); }
 	public boolean isInputTypeSigned() { return inputType.isSignedNumber() || inputType.isUnspecifiedNumber(); }
@@ -1020,34 +1008,34 @@ public abstract class CommandHandler extends TypingHandler {
 
 
 	public String getABCString() {
-		return mLanguage == null ? "ABC" : mLanguage.getAbcString().toUpperCase(mLanguage.getLocale());
+		return session.language == null ? "ABC" : session.language.getAbcString().toUpperCase(session.language.getLocale());
 	}
 
 
 	public int getDisplayTextCase() {
-		return getDisplayTextCase(mLanguage, mInputMode.getTextCase());
+		return getDisplayTextCase(session.language, session.mode.getTextCase());
 	}
 
 
-	public InputMode getInputMode() { return mInputMode; }
+	public InputMode getInputMode() { return session.mode; }
 
 
 	@NonNull
 	public String getInputModeName() {
-		if (InputModeKind.isHiragana(mInputMode)) return "あ";
-		if (InputModeKind.isKatakana(mInputMode)) return "ア";
-		if (InputModeKind.isPredictive(mInputMode)) {
-			return mLanguage != null ? mLanguage.getCode().toUpperCase(mLanguage.getLocale()) : "T9";
+		if (InputModeKind.isHiragana(session.mode)) return "あ";
+		if (InputModeKind.isKatakana(session.mode)) return "ア";
+		if (InputModeKind.isPredictive(session.mode)) {
+			return session.language != null ? session.language.getCode().toUpperCase(session.language.getLocale()) : "T9";
 		}
-		if (InputModeKind.isNumeric(mInputMode)) return "123";
+		if (InputModeKind.isNumeric(session.mode)) return "123";
 		return getABCString();
 	}
 
 
-	public int getTextCase() { return mInputMode.getTextCase(); }
+	public int getTextCase() { return session.mode.getTextCase(); }
 
 	@Nullable
-	public Language getLanguage() { return mLanguage; }
+	public Language getLanguage() { return session.language; }
 
 	public SettingsStore getSettings() { return settings; }
 
