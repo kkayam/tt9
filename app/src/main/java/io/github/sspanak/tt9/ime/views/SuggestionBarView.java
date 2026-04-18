@@ -132,10 +132,7 @@ public class SuggestionBarView extends View {
 
 	@NonNull
 	private String buildModeLabel() {
-		if (modeText.isEmpty() && langText.isEmpty()) return "";
-		if (modeText.isEmpty()) return langText;
-		if (langText.isEmpty()) return modeText;
-		return modeText + " · " + langText;
+		return modeText;
 	}
 
 
