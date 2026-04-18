@@ -9,6 +9,8 @@ import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.function.IntSupplier;
 
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.commands.CmdAddWord;
@@ -58,8 +60,11 @@ public abstract class CommandHandler extends TypingHandler {
 
 	protected boolean isLanguageRTL;
 
-	protected boolean inEmojiMode = false;
-	private int emojiCategoryIndex = 0;
+	@NonNull protected final EmojiMode emojiMode = new EmojiMode(
+		this::getApplicationContext,
+		() -> suggestionOps,
+		() -> textField
+	);
 
 	private boolean waitingForSpaceTrim = false;
 
@@ -118,7 +123,7 @@ public abstract class CommandHandler extends TypingHandler {
 
 	@Override
 	public boolean onBackspace(int repeat) {
-		if (inEmojiMode) {
+		if (emojiMode.isActive()) {
 			exitEmojiMode();
 			return true;
 		}
@@ -131,8 +136,8 @@ public abstract class CommandHandler extends TypingHandler {
 		suggestionOps.cancelDelayedAccept();
 		stopWaitingForSpaceTrimKey();
 
-		if (isInEmojiMode()) {
-			onEmojiSelected();
+		if (emojiMode.isActive()) {
+			emojiMode.onSelect();
 			return true;
 		}
 
@@ -186,7 +191,7 @@ public abstract class CommandHandler extends TypingHandler {
 		}
 
 		// Emoji mode exit
-		if (inEmojiMode) {
+		if (emojiMode.isActive()) {
 			exitEmojiMode();
 		}
 
@@ -256,27 +261,52 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	private boolean onDynamicKey(int keyCode, boolean repeat, boolean validateOnly) {
-		if (keyCode == settings.getKeyAddWord()) return onKeyAddWord(validateOnly);
-		if (keyCode == settings.getKeyCommandPalette()) return onKeyEmoji(validateOnly);
-		if (keyCode == settings.getKeyEditText()) return onKeyEditText(validateOnly);
-		if (keyCode == settings.getKeyEditWord()) return onKeyEditWord(validateOnly);
-		if (keyCode == settings.getKeyFilterClear()) return onKeyFilterClear(validateOnly);
-		if (keyCode == settings.getKeyFilterSuggestions()) return onKeyFilterSuggestions(validateOnly, repeat);
-		if (keyCode == settings.getKeyNextLanguage()) return onKeyNextLanguage(validateOnly);
-		if (keyCode == settings.getKeyNextInputMode()) return onKeyNextInputMode(validateOnly);
-		if (keyCode == settings.getKeyPreviousSuggestion()) return onKeyScrollSuggestion(validateOnly, true);
-		if (keyCode == settings.getKeyNextSuggestion()) return onKeyScrollSuggestion(validateOnly, false);
-		if (keyCode == settings.getKeySelectKeyboard()) return onKeySelectKeyboard(validateOnly);
-		if (keyCode == settings.getKeyShift()) {
-			return onKeyNextTextCase(validateOnly)
-				|| (keyCode == settings.getKeySpaceKorean() && onKeySpaceKorean(validateOnly));
+	@FunctionalInterface
+	private interface HotkeyAction {
+		boolean run(boolean repeat, boolean validateOnly);
+	}
+
+	private record DynamicHotkey(@NonNull IntSupplier keyCode, @NonNull HotkeyAction action) {}
+
+	private List<DynamicHotkey> dynamicHotkeys;
+
+
+	private List<DynamicHotkey> dynamicHotkeys() {
+		if (dynamicHotkeys == null) {
+			dynamicHotkeys = List.of(
+				new DynamicHotkey(settings::getKeyAddWord,          (r, v) -> onKeyAddWord(v)),
+				new DynamicHotkey(settings::getKeyCommandPalette,   (r, v) -> onKeyEmoji(v)),
+				new DynamicHotkey(settings::getKeyEditText,         (r, v) -> onKeyEditText(v)),
+				new DynamicHotkey(settings::getKeyEditWord,         (r, v) -> onKeyEditWord(v)),
+				new DynamicHotkey(settings::getKeyFilterClear,      (r, v) -> onKeyFilterClear(v)),
+				new DynamicHotkey(settings::getKeyFilterSuggestions,(r, v) -> onKeyFilterSuggestions(v, r)),
+				new DynamicHotkey(settings::getKeyNextLanguage,     (r, v) -> onKeyNextLanguage(v)),
+				new DynamicHotkey(settings::getKeyNextInputMode,    (r, v) -> onKeyNextInputMode(v)),
+				new DynamicHotkey(settings::getKeyPreviousSuggestion,(r, v) -> onKeyScrollSuggestion(v, true)),
+				new DynamicHotkey(settings::getKeyNextSuggestion,   (r, v) -> onKeyScrollSuggestion(v, false)),
+				new DynamicHotkey(settings::getKeySelectKeyboard,   (r, v) -> onKeySelectKeyboard(v)),
+				// Shift can be bound to the same key as Korean Space — try both from the Shift slot.
+				new DynamicHotkey(settings::getKeyShift,            (r, v) ->
+					onKeyNextTextCase(v)
+					|| (settings.getKeyShift() == settings.getKeySpaceKorean() && onKeySpaceKorean(v))
+				),
+				new DynamicHotkey(settings::getKeySpaceKorean,      (r, v) -> onKeySpaceKorean(v)),
+				new DynamicHotkey(settings::getKeyShowSettings,     (r, v) -> onKeyShowSettings(v)),
+				new DynamicHotkey(settings::getKeyUndo,             (r, v) -> onKeyUndo(v)),
+				new DynamicHotkey(settings::getKeyRedo,             (r, v) -> onKeyRedo(v)),
+				new DynamicHotkey(settings::getKeyVoiceInput,       (r, v) -> onKeyVoiceInput(v))
+			);
 		}
-		if (keyCode == settings.getKeySpaceKorean()) return onKeySpaceKorean(validateOnly);
-		if (keyCode == settings.getKeyShowSettings()) return onKeyShowSettings(validateOnly);
-		if (keyCode == settings.getKeyUndo()) return onKeyUndo(validateOnly);
-		if (keyCode == settings.getKeyRedo()) return onKeyRedo(validateOnly);
-		if (keyCode == settings.getKeyVoiceInput()) return onKeyVoiceInput(validateOnly);
+		return dynamicHotkeys;
+	}
+
+
+	private boolean onDynamicKey(int keyCode, boolean repeat, boolean validateOnly) {
+		for (DynamicHotkey hk : dynamicHotkeys()) {
+			if (hk.keyCode().getAsInt() == keyCode) {
+				return hk.action().run(repeat, validateOnly);
+			}
+		}
 		return false;
 	}
 
@@ -310,8 +340,8 @@ public abstract class CommandHandler extends TypingHandler {
 	private boolean onKeyEmoji(boolean validateOnly) {
 		if (shouldBeOff()) return false;
 		if (validateOnly) return true;
-		if (isInEmojiMode()) {
-			nextEmojiCategory();
+		if (emojiMode.isActive()) {
+			emojiMode.nextCategory();
 		} else {
 			enterEmojiMode();
 		}
@@ -915,56 +945,20 @@ public abstract class CommandHandler extends TypingHandler {
 	/********** Emoji mode **********/
 
 	public boolean isInEmojiMode() {
-		return inEmojiMode;
+		return emojiMode.isActive();
 	}
 
 
 	public void enterEmojiMode() {
 		suggestionOps.cancelDelayedAccept();
 		mInputMode.onAcceptSuggestion(suggestionOps.acceptIncomplete());
-		inEmojiMode = true;
-		emojiCategoryIndex = 0;
-		showEmojiCategory();
-	}
-
-
-	public void nextEmojiCategory() {
-		emojiCategoryIndex = (emojiCategoryIndex + 1) % Emoji.getMaxEmojiLevel();
-		showEmojiCategory();
-	}
-
-
-	private void showEmojiCategory() {
-		ArrayList<String> emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
-		if (emojis.isEmpty() && emojiCategoryIndex == 0) {
-			emojiCategoryIndex = 1;
-			emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
-		}
-		suggestionOps.set(emojis, 0, false);
+		emojiMode.enter();
 	}
 
 
 	public void exitEmojiMode() {
-		inEmojiMode = false;
-		emojiCategoryIndex = 0;
-		suggestionOps.set(null);
+		emojiMode.exit();
 		resetStatus();
-	}
-
-
-	public void onEmojiSelected() {
-		int currentIndex = suggestionOps.getCurrentIndex();
-		String emoji = suggestionOps.getCurrent();
-		if (!emoji.isEmpty()) {
-			textField.setText(emoji);
-			Emoji.recordEmojiUsage(getApplicationContext(), emoji);
-		}
-		// Recently Used tab: keep list stable during this session.
-		if (emojiCategoryIndex == 0) {
-			return;
-		}
-		ArrayList<String> emojis = Emoji.getEmoji(getApplicationContext(), emojiCategoryIndex);
-		suggestionOps.set(emojis, currentIndex, false);
 	}
 
 
