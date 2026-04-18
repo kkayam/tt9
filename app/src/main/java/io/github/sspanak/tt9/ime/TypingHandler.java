@@ -486,19 +486,11 @@ public abstract class TypingHandler extends BaseHandler {
 			surroundingChars = autoCorrectSpace(lastWord, surroundingChars, false, key);
 		}
 
-		// Auto-add unknown words to dictionary when spacebar (key 0) finishes a word
-		if (key == 0 && surroundingChars[0] != null && !surroundingChars[0].isEmpty()) {
-			String space = Characters.getSpace(session.language);
-			int spaceIdx = surroundingChars[0].lastIndexOf(space);
-			String finishedWord = spaceIdx >= 0 ? surroundingChars[0].substring(spaceIdx + space.length()) : surroundingChars[0];
-			if (!finishedWord.isEmpty()) {
-				DataStore.putSilently(session.language, finishedWord);
-			}
-			
-			// Space finishes the current word in fallback mode, restoring predictive
-			if (session.inPredictiveFallback) {
-				exitPredictiveFallback();
-			}
+		// Space finishes the current word in fallback mode, restoring predictive.
+		// (Dictionary auto-add for space lives in onText, which is what the normal space path
+		// actually routes through; this branch only runs for hold-0 / numeric-mode edge cases.)
+		if (key == 0 && surroundingChars[0] != null && !surroundingChars[0].isEmpty() && session.inPredictiveFallback) {
+			exitPredictiveFallback();
 		}
 
 		// Auto-adjust the text case before each word/char, if the InputMode supports it.
@@ -575,10 +567,36 @@ public abstract class TypingHandler extends BaseHandler {
 		// Appears as both a suggestion and composing text so space/OK accept it the same way
 		// any in-progress word does.
 		if (Characters.getSpace(session.language).equals(text)) {
+			autoAddFinishedWord(surroundingChars[0]);
 			showNextWordPrediction(lastWord);
 		}
 
 		return true;
+	}
+
+
+	/**
+	 * When a space has just been typed, add the word before it to the user dictionary (no-op
+	 * if it's already known). {@code beforeCursor} is the text up to and including the space.
+	 */
+	private void autoAddFinishedWord(@Nullable String beforeCursor) {
+		if (beforeCursor == null || beforeCursor.isEmpty() || session.language == null) {
+			return;
+		}
+
+		final String space = Characters.getSpace(session.language);
+		String trimmed = beforeCursor.endsWith(space)
+			? beforeCursor.substring(0, beforeCursor.length() - space.length())
+			: beforeCursor;
+
+		final int lastSpaceIdx = trimmed.lastIndexOf(space);
+		final String finishedWord = lastSpaceIdx >= 0
+			? trimmed.substring(lastSpaceIdx + space.length())
+			: trimmed;
+
+		if (!finishedWord.isEmpty()) {
+			DataStore.putSilently(session.language, finishedWord);
+		}
 	}
 
 
