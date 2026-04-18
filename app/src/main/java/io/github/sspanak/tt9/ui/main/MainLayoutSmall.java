@@ -4,18 +4,12 @@ import android.content.res.Resources;
 
 import androidx.annotation.NonNull;
 
-import java.util.ArrayList;
-
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.ime.TraditionalT9;
-import io.github.sspanak.tt9.ui.main.keys.SoftKey;
-import io.github.sspanak.tt9.ui.main.keys.SoftKeyCommandPalette;
 import io.github.sspanak.tt9.util.sys.DeviceInfo;
 
 class MainLayoutSmall extends MainLayoutExtraPanel {
 	protected int height;
-	protected boolean isCommandPaletteShown = false;
-	protected boolean isTextEditingPaletteShown = false;
 
 
 	MainLayoutSmall(TraditionalT9 tt9) {
@@ -27,102 +21,18 @@ class MainLayoutSmall extends MainLayoutExtraPanel {
 	int getHeight(boolean forceRecalculate) {
 		if (height <= 0 || forceRecalculate) {
 			Resources resources = tt9.getResources();
-			height = getPanelHeight(resources);
-			if (tt9.getSettings().getMessengerReplyExtraPadding()) {
-				height += resources.getDimensionPixelSize(R.dimen.main_small_main_key_wrapper_extra_height_for_messenger);
-			}
+			height = resources.getDimensionPixelSize(R.dimen.suggestion_bar_height);
 		}
 
 		return height;
 	}
 
 
-	protected int getPanelHeight(@NonNull Resources resources) {
-		if (isCommandPaletteShown() || isTextEditingPaletteShown()) {
-			return resources.getDimensionPixelSize(R.dimen.main_small_command_palette_height);
-		} else {
-			return resources.getDimensionPixelSize(R.dimen.main_small_main_key_wrapper_height);
-		}
-	}
-
-
-	protected void setSoftKeysVisibility() {
-		if (view != null) {
-			togglePanel(R.id.main_soft_keys, true);
-			togglePanel(R.id.main_small_messenger_padding_hack, tt9.getSettings().getMessengerReplyExtraPadding());
-		}
-	}
-
-
-	@Override
-	void showCommandPalette() {
-		super.showCommandPalette();
-		togglePanel(R.id.main_soft_keys, false);
-		isCommandPaletteShown = true;
-		isTextEditingPaletteShown = false;
-		togglePanel(R.id.main_command_keys, true);
-		getHeight(true);
-		renderKeys(false);
-	}
-
-
-	@Override
-	void showKeyboard() {
-		super.showKeyboard();
-		togglePanel(R.id.main_soft_keys, true);
-		togglePanel(R.id.main_command_keys, false);
-		isCommandPaletteShown = false;
-		isTextEditingPaletteShown = false;
-		getHeight(true);
-		renderKeys(false);
-	}
-
-
-	@Override
-	void showTextEditingPalette() {
-		super.showTextEditingPalette();
-		togglePanel(R.id.main_soft_keys, false);
-		isCommandPaletteShown = false;
-		isTextEditingPaletteShown = true;
-		togglePanel(R.id.main_command_keys, true);
-		getHeight(true);
-		renderKeys(false);
-	}
-
-
-	@Override
-	boolean isCommandPaletteShown() {
-		return isCommandPaletteShown;
-	}
-
-
-	@Override
-	boolean isTextEditingPaletteShown() {
-		return isTextEditingPaletteShown;
-	}
-
-
-	@Override
-	protected void enableClickHandlers() {
-		super.enableClickHandlers();
-
-		for (SoftKey key : getKeys()) {
-			if (key instanceof SoftKeyCommandPalette) {
-				((SoftKeyCommandPalette) key).setMainView(tt9.getMainView());
-			}
-		}
-	}
-
-
-	@NonNull
-	@Override
-	protected ArrayList<SoftKey> getKeys() {
-		if (view != null && keys.isEmpty()) {
-			keys.addAll(getKeysFromContainer(view.findViewById(R.id.main_command_keys)));
-			keys.addAll(getKeysFromContainer(view.findViewById(R.id.main_soft_keys)));
-		}
-		return keys;
-	}
+	@Override void showCommandPalette() {}
+	@Override void showKeyboard() {}
+	@Override void showTextEditingPalette() {}
+	@Override boolean isCommandPaletteShown() { return false; }
+	@Override boolean isTextEditingPaletteShown() { return false; }
 
 
 	@Override
@@ -130,11 +40,8 @@ class MainLayoutSmall extends MainLayoutExtraPanel {
 		final boolean isPortrait = !DeviceInfo.isLandscapeOrientation(tt9);
 
 		getView();
-		setSoftKeysVisibility();
 		setPadding();
 		setWidth(tt9.getSettings().getWidthPercent(isPortrait), tt9.getSettings().getAlignment());
 		setBackgroundBlending();
-		enableClickHandlers();
-		renderKeys(false);
 	}
 }

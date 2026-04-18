@@ -11,19 +11,6 @@
 		<View style="@style/TTheme.Keyboard.TopSeparator" />
 
 		<include layout="@layout/panel_suggestion_bar" />
-
-		<LinearLayout style="@style/TTheme.MainSmall.MessengerPaddingHack" android:id="@+id/main_small_messenger_padding_hack"/>
-
-		<include layout="@layout/panel_small_main_keys" android:id="@+id/main_soft_keys" />
-
-		<LinearLayout style="@style/TTheme.CommandPalette.Wrapper" android:id="@+id/main_command_keys" android:visibility="gone">
-			<include layout="@layout/panel_small_command_keys" />
-		</LinearLayout>
-
-		<include
-			layout="@layout/panel_extra"
-			android:id="@+id/main_panel_extra"
-			android:visibility="gone" />
 	</LinearLayout>
 
 	<LinearLayout style="@style/TTheme.FullScreenContainer.SideBumper" android:id="@+id/bumper_right">

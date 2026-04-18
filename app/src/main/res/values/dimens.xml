@@ -8,6 +8,9 @@
 	<!-- standard text size for keys -->
 	<dimen name="key_text_size">21dp</dimen>
 
+	<!-- Suggestion bar -->
+	<dimen name="suggestion_bar_height">42dp</dimen>
+
 	<!-- Main Small -->
 	<dimen name="main_small_main_key_wrapper_height">46dp</dimen> <!-- key height + margin -->
 	<dimen name="main_small_main_key_wrapper_extra_height_for_messenger">50dp</dimen> <!-- empirically found the correct amount -->

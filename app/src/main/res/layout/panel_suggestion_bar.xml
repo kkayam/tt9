@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:id="@+id/suggestion_bar"
 	android:layout_width="match_parent"
-	android:layout_height="42dp"
+	android:layout_height="@dimen/suggestion_bar_height"
 	android:clipChildren="true"
 	android:clipToPadding="true">
 
