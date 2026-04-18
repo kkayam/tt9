@@ -16,6 +16,7 @@ import io.github.sspanak.tt9.db.DataStore;
 import io.github.sspanak.tt9.db.words.DictionaryLoader;
 import io.github.sspanak.tt9.hacks.InputType;
 import io.github.sspanak.tt9.ime.modes.InputModeKind;
+import io.github.sspanak.tt9.ime.views.SuggestionBarView;
 import io.github.sspanak.tt9.languages.LanguageCollection;
 import io.github.sspanak.tt9.preferences.settings.SettingsStore;
 import io.github.sspanak.tt9.ui.UI;
@@ -39,12 +40,19 @@ public class TraditionalT9 extends CommandHandler {
 	// A String to be committed after successfully starting in an input field.
 	@NonNull private final StringBuffer onAfterStartText = new StringBuffer();
 
+	private SuggestionBarView suggestionBar;
+
 
 	@Override
 	public View onCreateInputView() {
-		// The IME has no on-screen view — hardware keys drive the entire pipeline.
 		suggestionOps.set(mInputMode.getSuggestions(), mInputMode.containsGeneratedSuggestions());
-		return null;
+
+		if (suggestionBar != null) {
+			suggestionBar.detach();
+		}
+		suggestionBar = new SuggestionBarView(this);
+		suggestionBar.attach(suggestionOps);
+		return suggestionBar;
 	}
 
 

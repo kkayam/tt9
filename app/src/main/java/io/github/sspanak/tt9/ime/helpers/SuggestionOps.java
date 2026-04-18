@@ -52,6 +52,7 @@ public class SuggestionOps {
 	private int selectedIndex = 0;
 	@Nullable private List<String> suggestions = new ArrayList<>();
 	@NonNull private final List<String> visibleSuggestions = new ArrayList<>();
+	@Nullable private Runnable onChange;
 
 
 	public SuggestionOps(@Nullable InputMethodService ims, @Nullable SettingsStore settings, @Nullable AppHacks appHacks, @Nullable InputType inputType, @Nullable TextField textField, @Nullable Consumer<String> onDelayedAccept) {
@@ -67,6 +68,33 @@ public class SuggestionOps {
 
 	public void setLanguage(@Nullable Language newLanguage) {
 		// Reserved for future UI-facing bar to react to language direction changes.
+	}
+
+
+	public void setChangeListener(@Nullable Runnable listener) {
+		this.onChange = listener;
+	}
+
+
+	@NonNull
+	public List<String> getVisibleSuggestions() {
+		return visibleSuggestions;
+	}
+
+
+	@NonNull
+	public String getVisible(int id) {
+		if (id < 0 || id >= visibleSuggestions.size()) {
+			return "";
+		}
+		return visibleSuggestions.get(id);
+	}
+
+
+	private void notifyChanged() {
+		if (onChange != null) {
+			onChange.run();
+		}
 	}
 
 
@@ -336,6 +364,7 @@ public class SuggestionOps {
 		addMany(newSuggestions, onlySpecialChars ? Integer.MAX_VALUE : SettingsStore.SUGGESTIONS_MAX);
 
 		selectedIndex = Math.max(Math.min(selectedIndex, visibleSuggestions.size() - 1), 0);
+		notifyChanged();
 	}
 
 
@@ -417,6 +446,7 @@ public class SuggestionOps {
 
 		calculateScrollIndex(increment);
 		appendHiddenSuggestionsIfNeeded(increment < 0);
+		notifyChanged();
 	}
 
 
