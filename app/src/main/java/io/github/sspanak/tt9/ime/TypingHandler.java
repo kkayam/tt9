@@ -162,7 +162,7 @@ public abstract class TypingHandler extends BaseHandler {
 			return super.onKeyDown(keyCode, event);
 		}
 
-		if (shouldBeOff()) {
+		if (shouldBeOff() && !isSuggestionBarNavKey(keyCode)) {
 			return false;
 		}
 
@@ -249,7 +249,7 @@ public abstract class TypingHandler extends BaseHandler {
 			return super.onKeyUp(keyCode, event);
 		}
 
-		if (shouldBeOff()) {
+		if (shouldBeOff() && !isSuggestionBarNavKey(keyCode)) {
 			return false;
 		}
 
@@ -285,6 +285,18 @@ public abstract class TypingHandler extends BaseHandler {
 
 	private boolean handleHotkey(int keyCode, boolean hold, boolean repeat, boolean validateOnly) {
 		return onHotkey(keyCode * (hold ? -1 : 1), repeat, validateOnly);
+	}
+
+
+	/**
+	 * Suggestion-bar scroll keys must be consumed whenever the bar has items to show.
+	 * Otherwise the default {@link InputMethodService} onKeyDown/onKeyUp lets the event bubble
+	 * up and the host window steals focus (e.g. DPAD_LEFT jumps to a neighbouring control),
+	 * which is what users experience while picking emojis in some apps.
+	 */
+	private boolean isSuggestionBarNavKey(int keyCode) {
+		if (suggestionOps.isEmpty()) return false;
+		return keyCode == settings.getKeyPreviousSuggestion() || keyCode == settings.getKeyNextSuggestion();
 	}
 
 
@@ -792,6 +804,15 @@ public abstract class TypingHandler extends BaseHandler {
 	protected void scrollSuggestions(boolean backward) {
 		suggestionOps.cancelDelayedAccept();
 		suggestionOps.scrollTo(backward ? -1 : 1);
+
+		// In emoji mode, scrolling is purely a bar-navigation action — the emoji is only committed
+		// on OK. Writing composing text here triggers some apps (e.g. WhatsApp) to restart the IME,
+		// which clears the suggestion list and lets the next DPAD press fall through to focus
+		// navigation in the host UI.
+		if (getFinalContext().isInEmojiMode()) {
+			return;
+		}
+
 		mInputMode.setWordStem(suggestionOps.getCurrent(), true);
 		if (InputModeKind.isRecomposing(mInputMode)) {
 			appHacks.setComposingTextPartsWithHighlightedJoining(mInputMode.getWordStem() + suggestionOps.getCurrent(), mInputMode.getRecomposingSuffix());
