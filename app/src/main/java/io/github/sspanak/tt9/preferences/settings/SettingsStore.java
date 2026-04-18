@@ -50,10 +50,8 @@ import io.github.sspanak.tt9.preferences.screens.keypad.SwitchUpsideDownKeys;
 import io.github.sspanak.tt9.preferences.screens.languages.SwitchAddWordsWithoutConfirmation;
 import io.github.sspanak.tt9.preferences.screens.languages.SwitchRaiseImportLimits;
 import io.github.sspanak.tt9.preferences.screens.modeAbc.DropDownAbcAutoAcceptTime;
-import io.github.sspanak.tt9.preferences.screens.modePredictive.DropDownOneKeyEmoji;
 import io.github.sspanak.tt9.preferences.screens.modePredictive.DropDownPredictiveAutoAcceptTime;
 import io.github.sspanak.tt9.preferences.screens.modePredictive.DropDownZeroKeyCharacter;
-import io.github.sspanak.tt9.preferences.screens.modePredictive.OneKeyEmojiOptions;
 import io.github.sspanak.tt9.ime.helpers.SuggestionOps;
 import io.github.sspanak.tt9.util.Logger;
 import io.github.sspanak.tt9.util.chars.Characters;
@@ -601,15 +599,7 @@ private final static String CHARS_1_PREFIX = "punctuation_order_key_1_initial_";
 	}
 
 	public boolean areEmojisEnabled() {
-		return getOneKeyEmojiMode() != OneKeyEmojiOptions.OPTIONS.NONE;
-	}
-
-	public OneKeyEmojiOptions.OPTIONS getOneKeyEmojiMode() {
-		try {
-			return OneKeyEmojiOptions.OPTIONS.valueOf(prefs.getString(DropDownOneKeyEmoji.NAME, OneKeyEmojiOptions.DEFAULT));
-		} catch (IllegalArgumentException e) {
-			return OneKeyEmojiOptions.OPTIONS.valueOf(OneKeyEmojiOptions.DEFAULT);
-		}
+		return true;
 	}
 
 	public boolean getPredictiveMode() {
