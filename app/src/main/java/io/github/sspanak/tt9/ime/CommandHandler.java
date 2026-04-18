@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.function.IntSupplier;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.commands.CmdAddWord;
 import io.github.sspanak.tt9.commands.CmdEditWord;
 import io.github.sspanak.tt9.commands.CmdMoveCursor;
 import io.github.sspanak.tt9.commands.CommandCollection;
@@ -272,9 +271,7 @@ public abstract class CommandHandler extends TypingHandler {
 	private List<DynamicHotkey> dynamicHotkeys() {
 		if (dynamicHotkeys == null) {
 			dynamicHotkeys = List.of(
-				new DynamicHotkey(settings::getKeyAddWord,          (r) -> onKeyAddWord()),
 				new DynamicHotkey(settings::getKeyCommandPalette,   (r) -> onKeyEmoji()),
-				new DynamicHotkey(settings::getKeyEditText,         (r) -> onKeyEditText()),
 				new DynamicHotkey(settings::getKeyEditWord,         (r) -> onKeyEditWord()),
 				new DynamicHotkey(settings::getKeyFilterClear,      (r) -> onKeyFilterClear()),
 				new DynamicHotkey(settings::getKeyFilterSuggestions,(r) -> onKeyFilterSuggestions(r)),
@@ -324,21 +321,6 @@ public abstract class CommandHandler extends TypingHandler {
 
 	/********** Hotkey handlers (dynamic) **********/
 
-	private KeyIntent onKeyAddWord() {
-		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
-		return KeyIntent.accept(this::addWord);
-	}
-
-
-	/**
-	 * The command palette is reached via the palette key directly, not a hotkey press — so we
-	 * simply decline, letting the standard * handler route the press to {@link #onKeyEmoji()}.
-	 */
-	public KeyIntent onKeyCommandPalette() {
-		return KeyIntent.REJECT;
-	}
-
-
 	private KeyIntent onKeyEmoji() {
 		if (shouldBeOff()) return KeyIntent.REJECT;
 		return KeyIntent.accept(() -> {
@@ -361,17 +343,6 @@ public abstract class CommandHandler extends TypingHandler {
 	private KeyIntent onKeyEditDuplicateLetter() {
 		if (shouldBeOff() || !InputModeKind.isRecomposing(session.mode)) return KeyIntent.REJECT;
 		return KeyIntent.accept(() -> ((ModeRecomposing) session.mode).duplicateLetter());
-	}
-
-
-	private KeyIntent onKeyEditText() {
-		if (!isInputViewShown() || shouldBeOff()) return KeyIntent.REJECT;
-		return KeyIntent.accept(() -> {
-			if (!hideTextEditingPalette()) {
-				showTextEditingPalette();
-				forceShowWindow();
-			}
-		});
 	}
 
 
@@ -592,21 +563,6 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	private void onTextEditingCommand(int key) {
-		if (!suggestionOps.isEmpty() && key != 9) {
-			suggestionOps.acceptAndClear(true);
-		}
-
-		if (key == 0) {
-			if (!InputModeKind.isNumeric(session.mode)) {
-				onText(Characters.getSpace(session.language), false);
-			}
-		} else {
-			CommandCollection.getByHardKey(CommandCollection.COLLECTION_TEXT_EDITING, key).run(getFinalContext());
-		}
-	}
-
-
 	protected boolean navigateBack() {
 		// voice stop takes precedence
 		if (voiceInputOps != null && voiceInputOps.isListening()) {
@@ -614,7 +570,7 @@ public abstract class CommandHandler extends TypingHandler {
 			return true;
 		}
 
-		return hideTextEditingPalette();
+		return false;
 	}
 
 
@@ -650,16 +606,6 @@ public abstract class CommandHandler extends TypingHandler {
 		session.mode.reset();
 		suggestionOps.setClipboardItems(clips);
 		appHacks.setComposingTextWithHighlightedStem(suggestionOps.getCurrent(), null, false);
-	}
-
-
-	public void showTextEditingPalette() {
-		// No-op: there is no UI to show anymore.
-	}
-
-
-	public boolean hideTextEditingPalette() {
-		return false;
 	}
 
 
@@ -735,12 +681,6 @@ public abstract class CommandHandler extends TypingHandler {
 	}
 
 
-	public void addWord() {
-		// The add-word dialog has been removed along with the IME UI.
-		Logger.d(LOG_TAG, "addWord: dialog removed — no-op");
-	}
-
-
 	protected void editWord() {
 		if (!CmdEditWord.validate(getFinalContext(), settings, session.language)) return;
 
@@ -782,23 +722,6 @@ public abstract class CommandHandler extends TypingHandler {
 		suggestionOps.cancelDelayedAccept();
 		stopVoiceInput();
 		UI.showChangeKeyboardDialog(this);
-	}
-
-
-	public void nextKeyboard() {
-		suggestionOps.cancelDelayedAccept();
-		stopVoiceInput();
-
-		if (DeviceInfo.AT_LEAST_ANDROID_9) {
-			switchToPreviousInputMethod();
-			return;
-		}
-
-		try {
-			switchInputMethod(SystemSettings.getPreviousIME(this));
-		} catch (Exception e) {
-			Logger.d(getClass().getSimpleName(), "Could not switch to previous input method. " + e);
-		}
 	}
 
 

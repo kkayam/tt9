@@ -77,11 +77,9 @@ public class CommandCollection {
 	@NonNull
 	public static ArrayList<Command> getHotkeyCommands() {
 		if (hotkeys.isEmpty()) {
-			hotkeys.add(new CmdAddWord());
 			hotkeys.add(new CmdEditWord());
 			hotkeys.add(new CmdBackspace());
 			hotkeys.add(new CmdCommandPalette());
-			hotkeys.add(new CmdEditText());
 			hotkeys.add(new CmdFilterClear());
 			hotkeys.add(new CmdFilterSuggestions());
 			hotkeys.add(new CmdSuggestionPrevious());
@@ -109,11 +107,9 @@ public class CommandCollection {
 	@NonNull
 	private static LinkedHashMap<Integer, Command> getPaletteCommands() {
 		if (palette.isEmpty()) {
-			addPaletteCommand(new CmdAddWord());
 			addPaletteCommand(new CmdEditWord());
 			addPaletteCommand(new CmdVoiceInput());
 			addPaletteCommand(new CmdUndo());
-			addPaletteCommand(new CmdEditText());
 			addPaletteCommand(new CmdRedo());
 			addPaletteCommand(new CmdSelectKeyboard());
 			addPaletteCommand(new CmdShowSettings());

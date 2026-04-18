@@ -18,10 +18,8 @@ import io.github.sspanak.tt9.BuildConfig;
 import io.github.sspanak.tt9.R;
 import io.github.sspanak.tt9.colors.AbstractColorScheme;
 import io.github.sspanak.tt9.colors.CollectionColorScheme;
-import io.github.sspanak.tt9.commands.CmdAddWord;
 import io.github.sspanak.tt9.commands.CmdBackspace;
 import io.github.sspanak.tt9.commands.CmdCommandPalette;
-import io.github.sspanak.tt9.commands.CmdEditText;
 import io.github.sspanak.tt9.commands.CmdEditWord;
 import io.github.sspanak.tt9.commands.CmdFilterClear;
 import io.github.sspanak.tt9.commands.CmdFilterSuggestions;
@@ -822,9 +820,7 @@ public static final String CUSTOM_ACTION_KEY_1 = "_1";
 	public static final String CUSTOM_ACTION_KEY_9 = "_9";
 
 	protected static final HashMap<String, String> classicLayoutDefaultsSwipeLeft = new HashMap<>() {{
-		put(CUSTOM_ACTION_KEY_1, CmdAddWord.ID);
 		put(CUSTOM_ACTION_KEY_2, CmdEditWord.ID);
-		put(CUSTOM_ACTION_KEY_5, CmdEditText.ID);
 	}};
 
 	protected static final HashMap<String, String> classicLayoutDefaultsSwipeRight = new HashMap<>() {{
@@ -971,7 +967,7 @@ private static final String HOTKEY_VERSION = "hotkeys_v7";
 	 */
 	public void setDefaultKeys() {
 		// no default keys
-		String[] unassigned = {CmdAddWord.ID, CmdEditText.ID, CmdSelectKeyboard.ID, CmdShowSettings.ID, CmdUndo.ID, CmdRedo.ID, CmdVoiceInput.ID};
+		String[] unassigned = {CmdSelectKeyboard.ID, CmdShowSettings.ID, CmdUndo.ID, CmdRedo.ID, CmdVoiceInput.ID};
 		for (String key : unassigned) {
 			getPrefsEditor().putString(key, String.valueOf(KeyEvent.KEYCODE_UNKNOWN));
 		}
@@ -1039,17 +1035,11 @@ private static final String HOTKEY_VERSION = "hotkeys_v7";
 	}
 
 
-	public int getKeyAddWord() {
-		return getFunctionKey(CmdAddWord.ID);
-	}
 	public int getKeyBackspace() {
 		return getFunctionKey(CmdBackspace.ID);
 	}
 	public int getKeyCommandPalette() {
 		return getFunctionKey(CmdCommandPalette.ID);
-	}
-	public int getKeyEditText() {
-		return getFunctionKey(CmdEditText.ID);
 	}
 	public int getKeyEditWord() {
 		return getFunctionKey(CmdEditWord.ID);

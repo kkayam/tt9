@@ -14,10 +14,6 @@ public class CmdCommandPalette implements Command {
 	public int getName() { return io.github.sspanak.tt9.R.string.function_show_command_palette; }
 
 	public boolean run(@Nullable TraditionalT9 tt9) {
-		if (tt9 == null) {
-			return false;
-		}
-		tt9.onKeyCommandPalette().run();
-		return true;
+		return false;
 	}
 }

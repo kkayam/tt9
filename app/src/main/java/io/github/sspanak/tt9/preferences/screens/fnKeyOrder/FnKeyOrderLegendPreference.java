@@ -7,9 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import io.github.sspanak.tt9.R;
-import io.github.sspanak.tt9.commands.CmdAddWord;
 import io.github.sspanak.tt9.commands.CmdBackspace;
-import io.github.sspanak.tt9.commands.CmdEditText;
 import io.github.sspanak.tt9.commands.CmdFilterSuggestions;
 import io.github.sspanak.tt9.commands.CmdNextInputMode;
 import io.github.sspanak.tt9.commands.CmdShift;
@@ -26,12 +24,11 @@ public class FnKeyOrderLegendPreference extends PreferencePlainText {
 	private void populate() {
 		StringBuilder content = new StringBuilder(__(R.string.fn_key_order_legend))
 			.append("\n1 = ").append(__(new CmdShowSettings().getName()))
-			.append("\n2 = ").append(__(new CmdAddWord().getName()))
 			.append("\n3 = ").append(__(new CmdShift().getName()))
 			.append("\n4 = ").append(__(new CmdNextInputMode().getName()))
 			.append("\n5 = ").append(__(new CmdBackspace().getName()))
 			.append("\n6 = ").append(__(new CmdFilterSuggestions().getName()))
-			.append("\n7 = ").append(__(new CmdEditText().getName())).append(" / ").append(__(new CmdVoiceInput().getName()))
+			.append("\n7 = ").append(__(new CmdVoiceInput().getName()))
 			.append("\n8 = OK\n\n")
 			.append(__(R.string.fn_key_order_preview_tip));
 
