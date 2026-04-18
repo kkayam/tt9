@@ -15,6 +15,7 @@ import java.util.concurrent.Future;
 import io.github.sspanak.tt9.db.DataStore;
 import io.github.sspanak.tt9.db.words.DictionaryLoader;
 import io.github.sspanak.tt9.hacks.InputType;
+import io.github.sspanak.tt9.ime.modes.InputMode;
 import io.github.sspanak.tt9.ime.modes.InputModeKind;
 import io.github.sspanak.tt9.ime.views.SuggestionBarView;
 import io.github.sspanak.tt9.languages.LanguageCollection;
@@ -59,9 +60,20 @@ public class TraditionalT9 extends CommandHandler {
 
 	public void pushModeInfoToBar() {
 		if (suggestionBar == null) return;
-		final String mode = mInputMode != null ? mInputMode.toString() : "";
-		final String language = mLanguage != null ? mLanguage.getName() : "";
-		suggestionBar.setModeInfo(mode, language);
+		final String rawMode = mInputMode != null ? mInputMode.toString() : "";
+		final String mode = applyTextCase(rawMode, displayTextCase);
+		suggestionBar.setModeInfo(mode, null);
+	}
+
+
+	private static String applyTextCase(String text, int textCase) {
+		if (text == null || text.isEmpty()) return "";
+		return switch (textCase) {
+			case InputMode.CASE_UPPER -> text.toUpperCase();
+			case InputMode.CASE_LOWER -> text.toLowerCase();
+			case InputMode.CASE_CAPITALIZE -> text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
+			default -> text;
+		};
 	}
 
 
