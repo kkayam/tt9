@@ -128,6 +128,7 @@ public abstract class TypingHandler extends BaseHandler {
 	@Override
 	protected void onInit() {
 		super.onInit();
+		initSuggestionOps();
 	}
 
 
