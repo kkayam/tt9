@@ -52,7 +52,16 @@ public class TraditionalT9 extends CommandHandler {
 		}
 		suggestionBar = new SuggestionBarView(this);
 		suggestionBar.attach(suggestionOps);
+		pushModeInfoToBar();
 		return suggestionBar;
+	}
+
+
+	public void pushModeInfoToBar() {
+		if (suggestionBar == null) return;
+		final String mode = mInputMode != null ? mInputMode.toString() : "";
+		final String language = mLanguage != null ? mLanguage.getName() : "";
+		suggestionBar.setModeInfo(mode, language);
 	}
 
 
@@ -168,6 +177,7 @@ public class TraditionalT9 extends CommandHandler {
 			backgroundTasks.removeCallbacksAndMessages(null);
 			settings.setDonationsVisible(true);
 			initUi(mInputMode);
+			pushModeInfoToBar();
 		}
 
 		onAfterStart(field);

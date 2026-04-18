@@ -5,6 +5,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.TypedValue;
 import android.view.View;
 
@@ -34,12 +36,20 @@ public class SuggestionBarView extends View {
 	private static final float SELECTED_RADIUS_DP = 6f;
 	private static final float TEXT_SIZE_DP = 15f;
 	private static final float SELECTED_TEXT_SIZE_DP = 21f;
+	private static final float MODE_TEXT_SIZE_DP = 16f;
+	private static final long FLASH_DURATION_MS = 2000L;
 
 	@Nullable private SuggestionOps suggestionOps;
 
 	private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private final Paint selectedTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private final Paint selectedBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+	private final Paint modePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+	@NonNull private String modeText = "";
+	@NonNull private String langText = "";
+	private long flashUntilMs = 0L;
+	@NonNull private final Handler flashHandler = new Handler(Looper.getMainLooper());
 
 	private final float gapPx;
 	private final float selectedPadHPx;
@@ -70,6 +80,11 @@ public class SuggestionBarView extends View {
 		selectedBgPaint.setColor(getColor(context, R.color.suggestion_selected_background, 0xFF8CB7F9));
 		selectedBgPaint.setStyle(Paint.Style.FILL);
 
+		final float modeTextSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, MODE_TEXT_SIZE_DP, context.getResources().getDisplayMetrics());
+		modePaint.setTextSize(modeTextSizePx);
+		modePaint.setTextAlign(Paint.Align.CENTER);
+		modePaint.setColor(getColor(context, R.color.keyboard_text, Color.DKGRAY));
+
 		setBackgroundColor(getColor(context, R.color.keyboard_background, 0xFFE8EAED));
 	}
 
@@ -93,6 +108,37 @@ public class SuggestionBarView extends View {
 	}
 
 
+	/**
+	 * Updates the mode + language label. If the label actually changed and suggestions are
+	 * currently on-screen, the label flashes centered for {@link #FLASH_DURATION_MS}.
+	 */
+	public void setModeInfo(@Nullable String mode, @Nullable String language) {
+		final String newMode = mode == null ? "" : mode;
+		final String newLang = language == null ? "" : language;
+		final boolean changed = !newMode.equals(modeText) || !newLang.equals(langText);
+
+		modeText = newMode;
+		langText = newLang;
+
+		if (changed && suggestionOps != null && !suggestionOps.isEmpty()) {
+			flashUntilMs = System.currentTimeMillis() + FLASH_DURATION_MS;
+			flashHandler.removeCallbacksAndMessages(null);
+			flashHandler.postDelayed(this::invalidate, FLASH_DURATION_MS);
+		}
+
+		refresh();
+	}
+
+
+	@NonNull
+	private String buildModeLabel() {
+		if (modeText.isEmpty() && langText.isEmpty()) return "";
+		if (modeText.isEmpty()) return langText;
+		if (langText.isEmpty()) return modeText;
+		return modeText + " · " + langText;
+	}
+
+
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		final int width = resolveSize(
@@ -112,7 +158,12 @@ public class SuggestionBarView extends View {
 
 		final List<String> items = suggestionOps.getVisibleSuggestions();
 		final int n = items.size();
-		if (n == 0) return;
+		final boolean flashing = System.currentTimeMillis() < flashUntilMs;
+
+		if (n == 0 || flashing) {
+			drawModeLabel(canvas);
+			return;
+		}
 
 		final int selectedIdx = clamp(suggestionOps.getCurrentIndex(), 0, n - 1);
 		final String selected = items.get(selectedIdx);
@@ -167,6 +218,15 @@ public class SuggestionBarView extends View {
 			canvas.drawText(word, cx, baselineY, textPaint);
 			leftCursor -= w + gapPx;
 		}
+	}
+
+
+	private void drawModeLabel(Canvas canvas) {
+		final String label = buildModeLabel();
+		if (label.isEmpty()) return;
+		final float centerX = getWidth() / 2f;
+		final float baselineY = (getHeight() - (modePaint.descent() + modePaint.ascent())) / 2f;
+		canvas.drawText(label, centerX, baselineY, modePaint);
 	}
 
 

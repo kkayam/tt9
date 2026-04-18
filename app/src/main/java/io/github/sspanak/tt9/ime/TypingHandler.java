@@ -102,6 +102,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
+		getFinalContext().pushModeInfoToBar();
 	}
 
 
@@ -121,6 +122,7 @@ public abstract class TypingHandler extends BaseHandler {
 
 		getDisplayTextCase(mLanguage, mInputMode.getTextCase());
 		setStatusIcon(mInputMode, mLanguage);
+		getFinalContext().pushModeInfoToBar();
 	}
 
 

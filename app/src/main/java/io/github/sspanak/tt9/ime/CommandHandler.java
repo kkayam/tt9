@@ -818,6 +818,8 @@ public abstract class CommandHandler extends TypingHandler {
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
 			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
 		}
+
+		getFinalContext().pushModeInfoToBar();
 	}
 
 
@@ -873,6 +875,7 @@ public abstract class CommandHandler extends TypingHandler {
 		if (settings.isMainLayoutStealth() && !settings.isStatusIconEnabled()) {
 			UI.toastShortSingle(this, mInputMode.getClass().getSimpleName(), mInputMode.toString());
 		}
+		getFinalContext().pushModeInfoToBar();
 	}
 
 
